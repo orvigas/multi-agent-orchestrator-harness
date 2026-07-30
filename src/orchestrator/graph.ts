@@ -46,7 +46,7 @@ const builder = new StateGraph(OrchestratorState)
 // Env vars:
 //   CHECKPOINT_DB_PATH: ruta a SQLite .db file (default: ./data/harness-checkpoints.db)
 //   CHECKPOINT_DB_URL: connection string PostgreSQL (cuando escales)
-export let orchestrator: any = null; // Lazy initialization
+export let orchestrator: ReturnType<typeof builder.compile> | null = null; // Lazy initialization
 
 export async function initializeOrchestrator() {
   const checkpointer = createCheckpointer();

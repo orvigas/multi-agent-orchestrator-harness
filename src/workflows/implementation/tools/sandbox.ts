@@ -107,7 +107,7 @@ function generateContainerId(taskId: string): string {
  * Resource limits: 512MB memory, 1 CPU, 500MB tmpfs
  * Docker image must be built beforehand or Dockerfile.sandbox must exist.
  */
-function createDockerSandbox(taskId: string, projectRoot: string, stack: Stack): Sandbox {
+function createDockerSandbox(taskId: string, projectRoot: string, _stack: Stack): Sandbox {
   const dockerfilePath = path.join(projectRoot, "Dockerfile.sandbox");
   if (!fs.existsSync(dockerfilePath)) {
     throw new Error("Dockerfile.sandbox not found at " + dockerfilePath);
@@ -228,7 +228,7 @@ export function cleanupSandbox(sandbox: Sandbox | string): void {
   if (type === "docker" && containerId) {
     try {
       spawnSync("docker", ["rm", "-f", containerId], { timeout: 30000, stdio: "pipe" });
-    } catch (err) {
+    } catch {
       // Silently ignore cleanup errors
     }
   } else {

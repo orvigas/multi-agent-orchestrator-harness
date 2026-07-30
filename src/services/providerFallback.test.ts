@@ -86,7 +86,7 @@ test("providerFallback: calculateBackoffDelay caps at 30 seconds", () => {
 
 test("providerFallback: calculateBackoffDelay has jitter", () => {
   // Run multiple times to check for randomness
-  const delays = Array.from({ length: 10 }, (_, i) => calculateBackoffDelay(1));
+  const delays = Array.from({ length: 10 }, () => calculateBackoffDelay(1));
   const unique = new Set(delays);
   // With jitter, we should get different values (unlikely to get same delay 10x)
   assert.ok(unique.size > 1, "Jitter should produce varying delays");

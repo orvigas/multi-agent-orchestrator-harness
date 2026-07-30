@@ -67,10 +67,16 @@ Return ONLY the JSON, no other text.
         state.config
       );
 
-      const result = JSON.parse(response.content);
-      const tasks: PlanTask[] = (result.tasks || []).map((t: any) => ({
-        id: t.id,
-        description: t.description,
+      // El JSON viene de un LLM: cada campo puede faltar, así que se aplican
+      // defaults en vez de confiar en la forma (antes esto era un `any` y un
+      // task sin `id` se colaba como `undefined` hasta el Orchestrator).
+      const result = JSON.parse(response.content) as {
+        tasks?: Array<Partial<PlanTask>>;
+        order?: string[];
+      };
+      const tasks: PlanTask[] = (result.tasks || []).map((t, i) => ({
+        id: t.id ?? `task-${i + 1}`,
+        description: t.description ?? "(sin descripción)",
         // Respeta restricciones: si fue marcado forbidden-zone antes, vacía touchesFiles
         touchesFiles: forbiddenRejections.some((r) => r.file && t.touchesFiles?.includes(r.file))
           ? []

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CircuitBreaker, resetGlobalCircuitBreaker } from "./llmCircuitBreaker.js";
+import { CircuitBreaker } from "./llmCircuitBreaker.js";
 
 test("circuitBreaker: new provider starts CLOSED and available", () => {
   const cb = new CircuitBreaker();
@@ -87,7 +87,7 @@ test("circuitBreaker: closes circuit after success threshold from HALF_OPEN", ()
   cb.recordFailure("anthropic", "claude-opus-5");
 
   // Manually set to HALF_OPEN for testing
-  let metrics = cb.getProviderMetrics("anthropic", "claude-opus-5");
+  const metrics = cb.getProviderMetrics("anthropic", "claude-opus-5");
   assert.ok(metrics);
   metrics.state = "HALF_OPEN";
   metrics.consecutiveFailures = 0;

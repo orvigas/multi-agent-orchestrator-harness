@@ -48,7 +48,7 @@ describe("resolveTargetPath", () => {
     const nonexistent = path.join(tempDir, "does-not-exist");
     assert.throws(
       () => resolveTargetPath(nonexistent),
-      (err: any) => {
+      (err: Error) => {
         return err.message.includes("Target repo not found");
       }
     );
@@ -60,7 +60,7 @@ describe("resolveTargetPath", () => {
 
     assert.throws(
       () => resolveTargetPath(filePath),
-      (err: any) => {
+      (err: Error) => {
         return err.message.includes("Target is not a directory");
       }
     );

@@ -28,7 +28,9 @@ const totalTokens = entries.reduce((sum, e) => sum + e.tokenBudget.used, 0);
 const totalCostUsd = entries.reduce((sum, e) => sum + e.costBudget.usedUsd, 0);
 
 // Phase 1.3: Collect all token events across runs (if available)
-const allTokenEvents: TokenUsageEvent[] = entries.flatMap((e) => (e as any).tokenEvents ?? []);
+const allTokenEvents: TokenUsageEvent[] = entries.flatMap(
+  (e) => (e as { tokenEvents?: TokenUsageEvent[] }).tokenEvents ?? []
+);
 const layerSummary = summarizeTokenUsageByLayer(allTokenEvents);
 
 console.log(`Corridas en los últimos ${days} día(s): ${entries.length}`);

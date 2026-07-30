@@ -9,11 +9,11 @@ import {
 import type { Patch, PatchHunk } from "../types.js";
 
 test("patchValidator: validatePatchStructure detects missing taskId", () => {
-  const patch: any = {
+  const patch = {
     // missing taskId
     rationale: "Fix typo",
     hunks: [],
-  };
+  } as unknown as Patch;
 
   const result = validatePatchStructure(patch);
   assert.ok(!result.valid);
@@ -21,11 +21,11 @@ test("patchValidator: validatePatchStructure detects missing taskId", () => {
 });
 
 test("patchValidator: validatePatchStructure detects missing rationale", () => {
-  const patch: any = {
+  const patch = {
     taskId: "task-1",
     // missing rationale
     hunks: [],
-  };
+  } as unknown as Patch;
 
   const result = validatePatchStructure(patch);
   assert.ok(!result.valid);
@@ -52,13 +52,13 @@ test("patchValidator: validatePatchStructure accepts valid structure", () => {
 });
 
 test("patchValidator: validateHunkFormat detects missing file", () => {
-  const hunk: any = {
+  const hunk = {
     // missing file
     contextBefore: [],
     oldLines: ["old"],
     newLines: ["new"],
     contextAfter: [],
-  };
+  } as unknown as PatchHunk;
 
   const result = validateHunkFormat(hunk);
   assert.ok(!result.valid);
@@ -95,13 +95,13 @@ test("patchValidator: validateHunkFormat detects empty oldLines and newLines", (
 });
 
 test("patchValidator: validateHunkFormat detects non-string array items", () => {
-  const hunk: any = {
+  const hunk = {
     file: "test.ts",
     contextBefore: ["line 1"],
     oldLines: [123],  // number instead of string
     newLines: ["new"],
     contextAfter: [],
-  };
+  } as unknown as PatchHunk;
 
   const result = validateHunkFormat(hunk);
   assert.ok(!result.valid);
