@@ -11,6 +11,12 @@ import type { Issue } from "../workflows/quality-gate/types.js";
 import type { ConflictReport } from "../workflows/merge-manager/types.js";
 
 export const OrchestratorState = Annotation.Root({
+  // Target repo path (defaults to current working directory)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   // Backlog y prioridades
   backlog: Annotation<Ticket[]>({
     reducer: (prev, next) => next ?? prev,

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { parseArgs } from "node:util";
 import { orchestrator } from "./orchestrator/graph.js";
 import { loadOrchestratorConfig } from "./config/loadOrchestratorConfig.js";
@@ -29,30 +30,52 @@ const demoBacklog: Ticket[] = [
 
 // CLI local (sin webhooks ni tracker externo — ver categoría 3 del análisis
 // de gaps): --ticket-id/--title/--description arma un backlog de un solo
-// ticket ad-hoc; --backlog apunta a un JSON con un array de Ticket[]. Sin
-// ninguno de los dos, corre el backlog de demo de siempre (comportamiento
-// de "npm run dev" sin cambios).
+// ticket ad-hoc; --backlog apunta a un JSON con un array de Ticket[];
+// --target apunta al repo a procesar (default: cwd). Sin ninguno de los dos,
+// corre el backlog de demo de siempre contra el harness actual.
 const { values: cliArgs } = parseArgs({
   options: {
     "ticket-id": { type: "string" },
     title: { type: "string" },
     description: { type: "string" },
     backlog: { type: "string" },
+    target: { type: "string" },
   },
   allowPositionals: false,
 });
 
-function resolveBacklog(): Ticket[] {
-  if (cliArgs.backlog) {
-    const raw = fs.readFileSync(cliArgs.backlog, "utf8");
+export function resolveTargetPath(target?: string): string {
+  if (!target) {
+    return process.cwd();
+  }
+
+  const targetPath = path.resolve(target);
+
+  // Validar que existe
+  if (!fs.existsSync(targetPath)) {
+    throw new Error(`Target repo not found: ${targetPath}`);
+  }
+
+  // Validar que es un directorio
+  const stat = fs.statSync(targetPath);
+  if (!stat.isDirectory()) {
+    throw new Error(`Target is not a directory: ${targetPath}`);
+  }
+
+  return targetPath;
+}
+
+export function resolveBacklog(ticketId?: string, title?: string, description?: string, backlogFile?: string): Ticket[] {
+  if (backlogFile) {
+    const raw = fs.readFileSync(backlogFile, "utf8");
     return JSON.parse(raw) as Ticket[];
   }
-  if (cliArgs["ticket-id"]) {
+  if (ticketId) {
     return [
       {
-        id: cliArgs["ticket-id"],
-        title: cliArgs.title ?? cliArgs["ticket-id"],
-        description: cliArgs.description,
+        id: ticketId,
+        title: title ?? ticketId,
+        description: description,
         status: "pending",
       },
     ];
@@ -62,8 +85,22 @@ function resolveBacklog(): Ticket[] {
 
 const orchestratorConfig = loadOrchestratorConfig();
 
+let targetPath: string;
+try {
+  targetPath = resolveTargetPath(cliArgs.target);
+} catch (err) {
+  console.error(`❌ ${(err as Error).message}`);
+  process.exit(1);
+}
+
 const initialState: Partial<OrchestratorStateType> = {
-  backlog: resolveBacklog(),
+  targetPath,
+  backlog: resolveBacklog(
+    cliArgs["ticket-id"],
+    cliArgs.title,
+    cliArgs.description,
+    cliArgs.backlog
+  ),
   maxRetries: 3,
   // deadline: antes calculado en ningún lado — deadlineMinutes de
   // config/orchestrator.yml era config muerta (state.ts default a null y

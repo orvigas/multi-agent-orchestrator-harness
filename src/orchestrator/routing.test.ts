@@ -5,6 +5,7 @@ import type { OrchestratorStateType } from "./state.js";
 
 function baseState(overrides: Partial<OrchestratorStateType> = {}): OrchestratorStateType {
   return {
+    targetPath: process.cwd(),
     backlog: [],
     currentTicket: { id: "T-1", title: "demo" },
     decisionLog: [],
