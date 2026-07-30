@@ -181,9 +181,9 @@ export function calculateBackoffDelay(attemptNumber: number): number {
   const baseDelayMs = 100;
   const maxDelayMs = 30_000;
   const delay = Math.min(baseDelayMs * Math.pow(2, attemptNumber), maxDelayMs);
-  // Add jitter: ±10% of delay
+  // Add jitter: ±10% of delay, but clamp result to [0, maxDelayMs]
   const jitter = delay * 0.1 * (Math.random() - 0.5);
-  return Math.max(0, delay + jitter);
+  return Math.max(0, Math.min(delay + jitter, maxDelayMs));
 }
 
 /**
