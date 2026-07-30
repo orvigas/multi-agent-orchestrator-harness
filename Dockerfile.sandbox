@@ -1,0 +1,32 @@
+FROM node:20-alpine
+
+# Install build essentials and tools for different stacks
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    py3-pip \
+    go \
+    git \
+    bash \
+    curl
+
+# Create non-root user for sandbox execution
+RUN addgroup -D sandbox && adduser -D -G sandbox sandbox
+
+# Create working directories
+RUN mkdir -p /sandbox /tmp && \
+    chown -R sandbox:sandbox /sandbox /tmp
+
+# Set up tmpfs mount point (will be mounted at runtime)
+VOLUME ["/tmp"]
+
+# Switch to sandbox user (no root)
+USER sandbox
+WORKDIR /sandbox
+
+# Health check: node works
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "process.exit(0)" || exit 1
+
+# Keep container alive
+CMD ["tail", "-f", "/dev/null"]

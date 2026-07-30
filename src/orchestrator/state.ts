@@ -9,6 +9,7 @@ import type { PatchAttempt } from "../workflows/implementation/types.js";
 import type { RecoveryEntry } from "../workflows/recovery/types.js";
 import type { Issue } from "../workflows/quality-gate/types.js";
 import type { ConflictReport } from "../workflows/merge-manager/types.js";
+import type { TokenUsageEvent } from "../services/tokenTracking.js";
 
 export const OrchestratorState = Annotation.Root({
   // Target repo path (defaults to current working directory)
@@ -120,6 +121,14 @@ export const OrchestratorState = Annotation.Root({
   // pasa por el retry normal de Recovery (regla dura en decideStrategyNode),
   // solo existe para que diagnoseNode tenga evidencia real que reportar.
   mergeConflict: Annotation<ConflictReport | null>({ reducer: (_, n) => n, default: () => null }),
+
+  // Token usage events per layer (Phase 1.3: Token Budget Tracking)
+  // Accumulated across all tickets in the run, never cleared.
+  // Each layer appends events as it executes.
+  tokenEvents: Annotation<TokenUsageEvent[]>({
+    reducer: (prev, next) => prev.concat(next),
+    default: () => [],
+  }),
 });
 
 export type OrchestratorStateType = typeof OrchestratorState.State;

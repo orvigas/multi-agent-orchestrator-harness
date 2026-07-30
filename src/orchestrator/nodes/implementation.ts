@@ -6,6 +6,7 @@ import { mergeManagerWorkflow } from "../../workflows/merge-manager/graph.js";
 import { appendReleaseLogEntry } from "../../workflows/merge-manager/releaseLog.js";
 import { loadMergeManagerConfig } from "../../config/loadMergeManagerConfig.js";
 import { decisionEntry } from "../decisionLog.js";
+import { recordTokenUsage } from "../../services/tokenTracking.js";
 import type { OrchestratorStateType } from "../state.js";
 import type { Plan, PlanTask } from "../../workflows/planner/types.js";
 import type { FailureCategory, StageResult } from "../../workflows/validation-pipeline/types.js";
@@ -246,6 +247,17 @@ export async function implementationNode(state: OrchestratorStateType) {
     usedUsd: Number((state.costBudget.usedUsd + usedCostUsd).toFixed(4)),
   };
 
+  // Record token usage events for Phase 1.3 tracking
+  const tokenEvents = promotedTaskIds.map((taskId) =>
+    recordTokenUsage(
+      "implementation",
+      "patch_generation",
+      `Patch generated for task ${taskId}`,
+      taskId,
+      { costUsd: SIMULATED_COST_USD_PER_TASK }
+    )
+  );
+
   if (failedTaskId) {
     return {
       ...failFast(
@@ -253,6 +265,7 @@ export async function implementationNode(state: OrchestratorStateType) {
       ),
       tokenBudget,
       costBudget,
+      tokenEvents,
       failedTaskId,
       failedSandboxPath,
       failureCategory,
@@ -283,6 +296,7 @@ export async function implementationNode(state: OrchestratorStateType) {
     lastImplementationResult: "pass" as const,
     tokenBudget,
     costBudget,
+    tokenEvents,
     // limpieza de segunda instancia (la primera es selectNextTicketNode al
     // elegir el SIGUIENTE ticket) — deja el estado consistente ya en el
     // momento del éxito, no solo cuando se selecciona otro ticket después.

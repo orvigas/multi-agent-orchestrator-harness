@@ -1,11 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { detectStack, type Stack } from "../../../services/stack.js";
 import type { Patch } from "../types.js";
 
 export interface Sandbox {
   path: string;
+  type: "filesystem" | "docker";
+  containerId?: string; // Only for Docker sandboxes
+  taskId: string;
+  projectRoot: string;
 }
 
 export interface ApplyResult {
@@ -84,17 +89,82 @@ function sanitize(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-// "temp-copy": copia el proyecto a un directorio temporal del OS y
-// symlinkea node_modules (sin reinstalar) — nunca toca la rama real. El
-// how-to usa git worktree; este proyecto no es un repo git (ver ADR de la
-// Capa 1 sobre MemorySaver para el mismo tipo de sustitución pragmática).
-export function createSandbox(taskId: string, targetPath?: string): Sandbox {
+function isDockerAvailable(): boolean {
+  try {
+    const result = spawnSync("docker", ["--version"], { timeout: 2000 });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function generateContainerId(taskId: string): string {
+  return `harness-${sanitize(taskId)}-${Date.now()}`;
+}
+
+/**
+ * Create a Docker-based sandbox for the task.
+ * Resource limits: 512MB memory, 1 CPU, 500MB tmpfs
+ * Docker image must be built beforehand or Dockerfile.sandbox must exist.
+ */
+function createDockerSandbox(taskId: string, projectRoot: string, stack: Stack): Sandbox {
+  const dockerfilePath = path.join(projectRoot, "Dockerfile.sandbox");
+  if (!fs.existsSync(dockerfilePath)) {
+    throw new Error("Dockerfile.sandbox not found at " + dockerfilePath);
+  }
+
+  const imageName = "harness-sandbox:latest";
+  const buildResult = spawnSync("docker", ["build", "-f", dockerfilePath, "-t", imageName, projectRoot], {
+    timeout: 300000, // 5 min timeout
+    stdio: "pipe",
+  });
+
+  if (buildResult.status !== 0) {
+    const stderr = buildResult.stderr?.toString() || "unknown error";
+    throw new Error(`Docker image build failed: ${stderr}`);
+  }
+
+  const containerId = generateContainerId(taskId);
+
+  // Create container with resource limits
+  const createArgs = [
+    "create",
+    "--name", containerId,
+    "--memory", "512m",
+    "--cpus", "1.0",
+    "--tmpfs", "/tmp:rw,size=500m",
+    "-w", "/sandbox",
+    imageName,
+    "tail", "-f", "/dev/null",
+  ];
+
+  const createResult = spawnSync("docker", createArgs, { timeout: 30000, stdio: "pipe" });
+  if (createResult.status !== 0) {
+    const stderr = createResult.stderr?.toString() || "unknown error";
+    throw new Error(`Docker container creation failed: ${stderr}`);
+  }
+
+  const startResult = spawnSync("docker", ["start", containerId], { timeout: 30000, stdio: "pipe" });
+  if (startResult.status !== 0) {
+    const stderr = startResult.stderr?.toString() || "unknown error";
+    spawnSync("docker", ["rm", "-f", containerId], { stdio: "pipe" });
+    throw new Error(`Docker container start failed: ${stderr}`);
+  }
+
+  return {
+    path: `/sandbox/repo`,
+    type: "docker",
+    containerId,
+    taskId,
+    projectRoot,
+  };
+}
+
+function createFilesystemSandbox(taskId: string, projectRoot: string, stack: Stack): Sandbox {
   const root = path.join(os.tmpdir(), SANDBOX_ROOT_NAME);
   fs.mkdirSync(root, { recursive: true });
   const sandboxPath = fs.mkdtempSync(path.join(root, `${sanitize(taskId)}-`));
 
-  const projectRoot = targetPath ?? process.cwd();
-  const stack = detectStack(projectRoot);
   const entriesToCopy = COPIED_ENTRIES_BY_STACK[stack.language];
 
   for (const entry of entriesToCopy) {
@@ -111,11 +181,59 @@ export function createSandbox(taskId: string, targetPath?: string): Sandbox {
     }
   }
 
-  return { path: sandboxPath };
+  return { path: sandboxPath, type: "filesystem", taskId, projectRoot };
 }
 
-export function cleanupSandbox(sandboxPath: string): void {
-  fs.rmSync(sandboxPath, { recursive: true, force: true });
+// "temp-copy": copia el proyecto a un directorio temporal del OS y
+// symlinkea node_modules (sin reinstalar) — nunca toca la rama real. El
+// how-to usa git worktree; este proyecto no es un repo git (ver ADR de la
+// Capa 1 sobre MemorySaver para el mismo tipo de sustitución pragmática).
+//
+// Por defecto intenta Docker (aislamiento + resource limits), fallback a filesystem.
+// Control via env vars:
+//   - USE_DOCKER_SANDBOX=true: force Docker (error if not available)
+//   - USE_DOCKER_SANDBOX=false: force filesystem (never try Docker)
+//   - (default): try Docker, silently fallback to filesystem if not available
+export function createSandbox(taskId: string, targetPath?: string): Sandbox {
+  const projectRoot = targetPath ?? process.cwd();
+  const stack = detectStack(projectRoot);
+  const forceDocker = process.env.USE_DOCKER_SANDBOX === "true";
+  const forceFilesystem = process.env.USE_DOCKER_SANDBOX === "false";
+  const tryDocker = !forceFilesystem && (forceDocker || isDockerAvailable());
+
+  if (tryDocker) {
+    try {
+      return createDockerSandbox(taskId, projectRoot, stack);
+    } catch (err) {
+      if (forceDocker) {
+        throw err; // Re-throw if Docker was explicitly requested
+      }
+      // Silently fallback to filesystem
+      return createFilesystemSandbox(taskId, projectRoot, stack);
+    }
+  }
+
+  return createFilesystemSandbox(taskId, projectRoot, stack);
+}
+
+export function cleanupSandbox(sandbox: Sandbox | string): void {
+  // Handle both old API (string path) and new API (Sandbox object)
+  if (typeof sandbox === "string") {
+    fs.rmSync(sandbox, { recursive: true, force: true });
+    return;
+  }
+
+  const { type, containerId, path: sandboxPath } = sandbox;
+
+  if (type === "docker" && containerId) {
+    try {
+      spawnSync("docker", ["rm", "-f", containerId], { timeout: 30000, stdio: "pipe" });
+    } catch (err) {
+      // Silently ignore cleanup errors
+    }
+  } else {
+    fs.rmSync(sandboxPath, { recursive: true, force: true });
+  }
 }
 
 function findSequence(haystack: string[], needle: string[]): number {

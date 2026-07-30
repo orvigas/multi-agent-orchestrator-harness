@@ -16,8 +16,16 @@ interface LLMResponse {
   stopReason: "end_turn" | "max_tokens" | "stop_sequence";
   inputTokens: number;
   outputTokens: number;
+  totalTokens: number;
 }
 
+/**
+ * Call an LLM (Anthropic Claude) for a specific role.
+ * Records actual token usage (Phase 1.3) for tracking.
+ *
+ * In deterministic mode, throws error (should be caught by caller with fallback heuristic).
+ * In llm mode, calls real Claude API and returns actual token counts.
+ */
 export async function callLLM(request: LLMRequest, config: OrchestratorConfig): Promise<LLMResponse> {
   // Si estamos en modo determinístico, no debería llamarse
   if (HARNESS_MODE === "deterministic") {
@@ -65,10 +73,16 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
     throw new Error("No text content in LLM response");
   }
 
+  const totalTokens = response.usage.input_tokens + response.usage.output_tokens;
+
+  // Note: Phase 1.3 token events are recorded by nodes that call callLLM
+  // They have access to totalTokens via the LLMResponse and can record events in their state
+
   return {
     content: textContent.text,
     stopReason: response.stop_reason as "end_turn" | "max_tokens" | "stop_sequence",
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
+    totalTokens,
   };
 }

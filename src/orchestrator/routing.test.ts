@@ -29,6 +29,7 @@ function baseState(overrides: Partial<OrchestratorStateType> = {}): Orchestrator
     implementerFallbackIndex: 0,
     qualityGateIssues: [],
     mergeConflict: null,
+    tokenEvents: [],
     ...overrides,
   };
 }
