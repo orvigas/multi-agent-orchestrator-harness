@@ -1,4 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk";
+// Phase 2.2: Provider fallback infrastructure
+// Actual retry logic will be implemented in Phase 2.3
 import type { OrchestratorConfig } from "../config/loadConfig.js";
 
 export const HARNESS_MODE = (process.env.HARNESS_MODE ?? "deterministic") as "deterministic" | "llm";
@@ -17,6 +19,8 @@ interface LLMResponse {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  provider: string;           // Phase 2.2: which provider was used
+  model: string;              // Phase 2.2: which model was used
 }
 
 /**
@@ -84,5 +88,7 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     totalTokens,
+    provider: roleConfig.provider,     // Phase 2.2: track which provider
+    model: roleConfig.model,            // Phase 2.2: track which model
   };
 }

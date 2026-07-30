@@ -164,6 +164,7 @@ IMPORTANT:
       }
 
       // Record token usage for Phase 1.3 (actual tokens from LLM)
+      // Phase 2.2: Include provider/model info for cost tracking
       const tokenEvent = recordTokenUsage(
         "implementation",
         "patch_generation",
@@ -173,6 +174,10 @@ IMPORTANT:
           hunksCount: patch.hunks.length,
           filesModified: [...new Set(patch.hunks.map((h) => h.file))].length,
           tokensUsed: response.totalTokens,
+          provider: response.provider,       // Phase 2.2
+          model: response.model,              // Phase 2.2
+          inputTokens: response.inputTokens,
+          outputTokens: response.outputTokens,
         }
       );
 
