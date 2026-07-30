@@ -1,5 +1,6 @@
-import { StateGraph, END, MemorySaver } from "@langchain/langgraph";
+import { StateGraph, END } from "@langchain/langgraph";
 import { OrchestratorState } from "./state.js";
+import { createCheckpointer } from "../persistence/checkpointer.js";
 import { bootstrapNode } from "./nodes/bootstrap.js";
 import { selectNextTicketNode } from "./nodes/selectNextTicket.js";
 import { knowledgeEngineNode } from "./nodes/knowledgeEngine.js";
@@ -40,9 +41,15 @@ const builder = new StateGraph(OrchestratorState)
   })
   .addEdge("abort_ticket", "select_next_ticket");
 
-// MemorySaver por defecto: no requiere infraestructura externa para correr
-// este how-to. Para persistencia entre procesos, cambia a PostgresSaver
-// (paquete @langchain/langgraph-checkpoint-postgres) usando CHECKPOINT_DB_URL.
-export const orchestrator = builder.compile({
-  checkpointer: new MemorySaver(),
-});
+// SQLiteSaver (MVP): archivo local, sin servidor, perfecto para single-process
+// Migra a PostgreSQL más tarde si necesitas múltiples instancias (ver sqlite-to-postgres-migration.md)
+// Env vars:
+//   CHECKPOINT_DB_PATH: ruta a SQLite .db file (default: ./data/harness-checkpoints.db)
+//   CHECKPOINT_DB_URL: connection string PostgreSQL (cuando escales)
+export let orchestrator: any = null; // Lazy initialization
+
+export async function initializeOrchestrator() {
+  const checkpointer = createCheckpointer();
+  orchestrator = builder.compile({ checkpointer });
+  return orchestrator;
+}

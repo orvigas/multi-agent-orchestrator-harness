@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { orchestrator } from "./orchestrator/graph.js";
+import { initializeOrchestrator, orchestrator as getOrchestrator } from "./orchestrator/graph.js";
+import { validateCheckpointer } from "./persistence/checkpointer.js";
 import { loadOrchestratorConfig } from "./config/loadOrchestratorConfig.js";
 import { appendRunLogEntry } from "./orchestrator/runLog.js";
 import type { OrchestratorStateType } from "./orchestrator/state.js";
@@ -83,57 +84,72 @@ export function resolveBacklog(ticketId?: string, title?: string, description?: 
   return demoBacklog;
 }
 
-const orchestratorConfig = loadOrchestratorConfig();
+async function main() {
+  const orchestratorConfig = loadOrchestratorConfig();
 
-let targetPath: string;
-try {
-  targetPath = resolveTargetPath(cliArgs.target);
-} catch (err) {
-  console.error(`❌ ${(err as Error).message}`);
+  // Inicializar checkpoint database (SQLite)
+  console.log("🔧 Initializing checkpoint database...");
+  const validation = await validateCheckpointer();
+  if (!validation.success) {
+    console.error(`❌ Checkpoint database error: ${validation.error}`);
+    process.exit(1);
+  }
+  console.log(`✅ Checkpoint database ready: ${validation.path}`);
+
+  // Inicializar orchestrator con SQLite checkpointer
+  console.log("🚀 Initializing Orchestrator...");
+  await initializeOrchestrator();
+
+  let targetPath: string;
+  try {
+    targetPath = resolveTargetPath(cliArgs.target);
+  } catch (err) {
+    console.error(`❌ ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  const initialState: Partial<OrchestratorStateType> = {
+    targetPath,
+    backlog: resolveBacklog(
+      cliArgs["ticket-id"],
+      cliArgs.title,
+      cliArgs.description,
+      cliArgs.backlog
+    ),
+    maxRetries: 3,
+    deadline: new Date(Date.now() + orchestratorConfig.orchestrator.deadlineMinutes * 60_000).toISOString(),
+  };
+
+  const threadId = `run-${Date.now()}`;
+  const config = { configurable: { thread_id: threadId }, recursionLimit: 100 };
+
+  const orchestrator = getOrchestrator;
+  if (!orchestrator) {
+    console.error("❌ Orchestrator initialization failed");
+    process.exit(1);
+  }
+
+  console.log("🎯 Starting Orchestrator...\n");
+  const finalState = await orchestrator.invoke(initialState, config);
+  appendRunLogEntry(threadId, finalState, orchestratorConfig);
+
+  console.log("=== Decision log ===");
+  for (const entry of finalState.decisionLog) {
+    console.log(`[${entry.timestamp}] (${entry.node}) ${entry.message}`);
+  }
+
+  console.log("\n=== Backlog final ===");
+  for (const ticket of finalState.backlog) {
+    console.log(`${ticket.id} [${ticket.status}] ${ticket.title}`);
+  }
+
+  console.log("\n=== Presupuesto final ===");
+  console.log(
+    `tokens: ${finalState.tokenBudget.used}/${finalState.tokenBudget.limit}, costo: $${finalState.costBudget.usedUsd}/$${finalState.costBudget.limitUsd}`
+  );
+}
+
+main().catch((err) => {
+  console.error("❌ Fatal error:", err);
   process.exit(1);
-}
-
-const initialState: Partial<OrchestratorStateType> = {
-  targetPath,
-  backlog: resolveBacklog(
-    cliArgs["ticket-id"],
-    cliArgs.title,
-    cliArgs.description,
-    cliArgs.backlog
-  ),
-  maxRetries: 3,
-  // deadline: antes calculado en ningún lado — deadlineMinutes de
-  // config/orchestrator.yml era config muerta (state.ts default a null y
-  // nada más lo poblaba). routeAfterBudgetCheck ya sabía leerlo.
-  deadline: new Date(Date.now() + orchestratorConfig.orchestrator.deadlineMinutes * 60_000).toISOString(),
-};
-
-// Con la Capa 5 real activa, un ticket cuya Validation Pipeline falla de
-// forma determinista (p. ej. una vulnerabilidad real en una dependencia
-// transitiva — ver npm audit) agota sus 3 reintentos de Recovery antes de
-// que abortTicketNode lo marque "blocked" y siga con el resto del backlog
-// (ver src/orchestrator/nodes/abortTicket.ts). Eso implica más pasos por
-// ticket que el límite de recursión por defecto (25) de LangGraph.
-// thread_id único por invocación: MemorySaver de todos modos no persiste
-// entre procesos (ADR 0001), pero un thread_id fijo haría que cada línea de
-// runLog fuera indistinguible de la anterior.
-const threadId = `run-${Date.now()}`;
-const config = { configurable: { thread_id: threadId }, recursionLimit: 100 };
-
-const finalState = await orchestrator.invoke(initialState, config);
-appendRunLogEntry(threadId, finalState, orchestratorConfig);
-
-console.log("=== Decision log ===");
-for (const entry of finalState.decisionLog) {
-  console.log(`[${entry.timestamp}] (${entry.node}) ${entry.message}`);
-}
-
-console.log("\n=== Backlog final ===");
-for (const ticket of finalState.backlog) {
-  console.log(`${ticket.id} [${ticket.status}] ${ticket.title}`);
-}
-
-console.log("\n=== Presupuesto final ===");
-console.log(
-  `tokens: ${finalState.tokenBudget.used}/${finalState.tokenBudget.limit}, costo: $${finalState.costBudget.usedUsd}/$${finalState.costBudget.limitUsd}`
-);
+});
