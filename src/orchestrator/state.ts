@@ -1,4 +1,5 @@
 import { Annotation } from "@langchain/langgraph";
+import { loadOrchestratorConfig } from "../config/loadOrchestratorConfig.js";
 import type { Ticket, DecisionEntry } from "./types.js";
 import type { OrchestratorConfig } from "../config/loadConfig.js";
 import type { EvidenceItem } from "../workflows/knowledge-engine/types.js";
@@ -42,14 +43,16 @@ export const OrchestratorState = Annotation.Root({
     default: () => null,
   }),
 
-  // Presupuestos — esto es lo que en LangGraph normalmente falta "de fábrica"
+  // Presupuestos — esto es lo que en LangGraph normalmente falta "de fábrica".
+  // Defaults desde config/orchestrator.yml (antes hardcodeados acá Y en
+  // src/index.ts por duplicado).
   tokenBudget: Annotation<{ limit: number; used: number }>({
     reducer: (prev, next) => ({ ...prev, ...next }),
-    default: () => ({ limit: 200_000, used: 0 }),
+    default: () => ({ limit: loadOrchestratorConfig().orchestrator.tokenBudget.limit, used: 0 }),
   }),
   costBudget: Annotation<{ limitUsd: number; usedUsd: number }>({
     reducer: (prev, next) => ({ ...prev, ...next }),
-    default: () => ({ limitUsd: 5, usedUsd: 0 }),
+    default: () => ({ limitUsd: loadOrchestratorConfig().orchestrator.costBudget.limitUsd, usedUsd: 0 }),
   }),
   deadline: Annotation<string | null>({ reducer: (_, n) => n, default: () => null }),
 

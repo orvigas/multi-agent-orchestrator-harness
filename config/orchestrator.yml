@@ -1,0 +1,20 @@
+# Único config sin loader propio hasta ahora — src/orchestrator/state.ts y
+# src/index.ts tenían estos valores hardcodeados por duplicado. Reemplaza a
+# config/budgets.yml (mismo contenido, ahora con loader real vía
+# createYamlConfigLoader<T>, igual que cada config/*.yml de capa).
+orchestrator:
+  tokenBudget:
+    limit: 200000
+  costBudget:
+    limitUsd: 5
+  # Tiempo máximo de vida de un run, en minutos, antes de que
+  # routeAfterBudgetCheck lo detenga. NO estaba conectado a nada — state.ts
+  # default a `deadline: null` y src/index.ts nunca lo poblaba, así que este
+  # valor era config muerta. Ahora src/index.ts lo usa para calcular
+  # `deadline` al arrancar.
+  deadlineMinutes: 60
+  # Log de auditoría append-only, un JSON por corrida completa de
+  # `npm run dev` / `harness:execute` (mismo patrón que
+  # src/workflows/merge-manager/releaseLog.ts). harness:logs/harness:costs
+  # leen de acá.
+  runLogPath: ".harness/runs.jsonl"

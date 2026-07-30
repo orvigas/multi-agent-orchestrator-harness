@@ -8,17 +8,16 @@ providers:
     apiKeyEnv: OPENROUTER_API_KEY
     baseUrl: https://openrouter.ai/api/v1
 
+# Solo "orchestrator" vive acá: cada capa 2-7 ya declara sus propios roles
+# en su config/*.yml (planner.yml, knowledge-engine.yml, implementation.yml,
+# recovery.yml, quality-gate.yml) — loadConfig.ts los compone todos en un
+# solo registro. Antes este archivo también declaraba planner/implementer/
+# recovery, duplicados y DESINCRONIZADOS de sus configs de capa (p. ej.
+# "implementer" aquí decía openrouter/qwen3-coder mientras
+# implementation.yml decía anthropic/claude-opus-4-8) — ver
+# src/config/roles.test.ts, que ahora falla si eso vuelve a pasar.
 roles:
   orchestrator:
     provider: anthropic
     model: claude-sonnet-5
     maxTokens: 4096
-  planner:
-    provider: anthropic
-    model: claude-opus-4-8
-  implementer:
-    provider: openrouter
-    model: qwen/qwen3-coder
-  recovery:
-    provider: openai
-    model: gpt-5.1
