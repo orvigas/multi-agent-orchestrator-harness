@@ -1,0 +1,24 @@
+providers:
+  anthropic:
+    apiKeyEnv: ANTHROPIC_API_KEY
+    baseUrl: https://api.anthropic.com
+  openai:
+    apiKeyEnv: OPENAI_API_KEY
+  openrouter:
+    apiKeyEnv: OPENROUTER_API_KEY
+    baseUrl: https://openrouter.ai/api/v1
+
+roles:
+  orchestrator:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 4096
+  planner:
+    provider: anthropic
+    model: claude-opus-4-8
+  implementer:
+    provider: openrouter
+    model: qwen/qwen3-coder
+  recovery:
+    provider: openai
+    model: gpt-5.1

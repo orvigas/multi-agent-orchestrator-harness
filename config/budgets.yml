@@ -1,0 +1,11 @@
+# Límites por defecto de presupuesto para el Orchestrator.
+# Estos valores alimentan los defaults de `tokenBudget` / `costBudget`
+# en src/orchestrator/state.ts cuando no se sobreescriben en la
+# invocación inicial del grafo.
+tokenBudget:
+  limit: 200000
+costBudget:
+  limitUsd: 5
+# Tiempo máximo de vida de un run, en minutos, antes de que
+# routeAfterBudgetCheck detenga el Orchestrator.
+deadlineMinutes: 60
