@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { LLMRequest, LLMResponse } from "./llm.js";
+import { formatFallbackResult } from "./providerFallback.js";
 
 /**
  * Phase 2.3: Retry logic tests.
@@ -195,17 +195,19 @@ test("llm-retry: circuit breaker pattern would track consecutive failures", () =
   assert.equal(breaker.failureCount, 6);
 });
 
-test("llm-retry: formatFallbackResult would show retry chain in logs", () => {
-  // Blueprint: formatted output for debugging
-  const attempts = [
-    { provider: "anthropic", model: "claude-opus-5", status: "rate_limited" as const },
-    { provider: "openai", model: "gpt-4-turbo", status: "success" as const },
-  ];
+test("llm-retry: formatFallbackResult shows the retry chain in logs", () => {
+  const formatted = formatFallbackResult({
+    selectedProvider: "openai",
+    selectedModel: "gpt-4-turbo",
+    attempts: [
+      { provider: "anthropic", model: "claude-opus-5", status: "rate_limited" },
+      { provider: "openai", model: "gpt-4-turbo", status: "success", durationMs: 1200 },
+    ],
+    finalStatus: "success",
+  });
 
-  const formatted = `Fallback chain:\n  ❌ [0] anthropic/claude-opus-5: rate_limited\n  ✅ [1] openai/gpt-4-turbo: success`;
-
-  assert.ok(formatted.includes("anthropic"));
-  assert.ok(formatted.includes("openai"));
+  assert.ok(formatted.includes("anthropic/claude-opus-5: rate_limited"));
+  assert.ok(formatted.includes("openai/gpt-4-turbo: success (1200ms)"));
   assert.ok(formatted.includes("❌"));
   assert.ok(formatted.includes("✅"));
 });

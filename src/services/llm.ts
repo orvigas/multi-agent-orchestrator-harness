@@ -2,6 +2,8 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import { OpenAI } from "openai";
 import {
   isRateLimitError,
+  isTimeoutError,
+  LLMTimeoutError,
   getFallbackProviders,
   calculateBackoffDelay,
   formatFallbackResult,
@@ -50,75 +52,103 @@ async function sleep(ms: number): Promise<void> {
 /**
  * Call a specific provider (Phase 2.3: provider abstraction).
  * Handles Anthropic and OpenAI.
- * Note: timeoutMs is reserved for Phase 2.4 when adding actual timeout enforcement.
+ *
+ * Phase 2.5: the timeout is enforced for real — an AbortController aborts the
+ * in-flight HTTP request once `timeoutMs` elapses, and the abort is surfaced as
+ * an LLMTimeoutError so the retry loop can tell it apart from other failures.
+ * The timer is always cleared in `finally`; leaving it pending would keep the
+ * Node process alive for up to the full timeout after a fast success.
  */
-async function callProvider(
+export async function callProvider(
   provider: string,
   model: string,
   request: LLMRequest,
   apiKey: string,
-  _timeoutMs: number
+  timeoutMs: number
 ): Promise<LLMResponse> {
-  if (provider === "anthropic") {
-    const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model,
-      max_tokens: request.maxTokens ?? 2000,
-      temperature: request.temperature ?? 0.7,
-      system: request.systemPrompt,
-      messages: [{ role: "user", content: request.userPrompt }],
-    });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const textContent = response.content.find((c) => c.type === "text");
-    if (!textContent || textContent.type !== "text") {
-      throw new Error("No text content in LLM response");
+  try {
+    if (provider === "anthropic") {
+      const client = new Anthropic({ apiKey });
+      const response = await client.messages.create(
+        {
+          model,
+          max_tokens: request.maxTokens ?? 2000,
+          temperature: request.temperature ?? 0.7,
+          system: request.systemPrompt,
+          messages: [{ role: "user", content: request.userPrompt }],
+        },
+        { signal: controller.signal }
+      );
+
+      const textContent = response.content.find((c) => c.type === "text");
+      if (!textContent || textContent.type !== "text") {
+        throw new Error("No text content in LLM response");
+      }
+
+      const totalTokens = response.usage.input_tokens + response.usage.output_tokens;
+      return {
+        content: textContent.text,
+        stopReason: response.stop_reason as "end_turn" | "max_tokens" | "stop_sequence",
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        totalTokens,
+        provider,
+        model,
+      };
+    } else if (provider === "openai") {
+      const client = new OpenAI({ apiKey });
+      const response = await (client.chat.completions.create as (
+        params: unknown,
+        options?: unknown
+      ) => Promise<unknown>)(
+        {
+          model,
+          max_tokens: request.maxTokens ?? 2000,
+          temperature: request.temperature ?? 0.7,
+          // OpenAI has no top-level `system` field: it goes in as the first message.
+          messages: [
+            { role: "system", content: request.systemPrompt },
+            { role: "user", content: request.userPrompt },
+          ],
+        },
+        { signal: controller.signal }
+      );
+
+      const responseObj = response as {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
+
+      const textContent = responseObj.choices?.[0]?.message?.content;
+      if (!textContent) {
+        throw new Error("No text content in LLM response");
+      }
+
+      const totalTokens =
+        (responseObj.usage?.prompt_tokens ?? 0) + (responseObj.usage?.completion_tokens ?? 0);
+      return {
+        content: textContent,
+        stopReason: responseObj.choices?.[0]?.finish_reason === "stop" ? "end_turn" : "max_tokens",
+        inputTokens: responseObj.usage?.prompt_tokens ?? 0,
+        outputTokens: responseObj.usage?.completion_tokens ?? 0,
+        totalTokens,
+        provider,
+        model,
+      };
+    } else {
+      throw new Error(`Unsupported provider: ${provider}`);
     }
-
-    const totalTokens = response.usage.input_tokens + response.usage.output_tokens;
-    return {
-      content: textContent.text,
-      stopReason: response.stop_reason as "end_turn" | "max_tokens" | "stop_sequence",
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      totalTokens,
-      provider,
-      model,
-    };
-  } else if (provider === "openai") {
-    const client = new OpenAI({ apiKey });
-    const response = await (client.chat.completions.create as (
-      params: unknown
-    ) => Promise<unknown>)({
-      model,
-      max_tokens: request.maxTokens ?? 2000,
-      temperature: request.temperature ?? 0.7,
-      system: request.systemPrompt,
-      messages: [{ role: "user", content: request.userPrompt }],
-    });
-
-    const responseObj = response as {
-      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-
-    const textContent = responseObj.choices?.[0]?.message?.content;
-    if (!textContent) {
-      throw new Error("No text content in LLM response");
+  } catch (error) {
+    // Our own abort fired: report it as a timeout, not as an opaque abort error.
+    if (controller.signal.aborted) {
+      throw new LLMTimeoutError(provider, model, timeoutMs);
     }
-
-    const totalTokens =
-      (responseObj.usage?.prompt_tokens ?? 0) + (responseObj.usage?.completion_tokens ?? 0);
-    return {
-      content: textContent,
-      stopReason: responseObj.choices?.[0]?.finish_reason === "stop" ? "end_turn" : "max_tokens",
-      inputTokens: responseObj.usage?.prompt_tokens ?? 0,
-      outputTokens: responseObj.usage?.completion_tokens ?? 0,
-      totalTokens,
-      provider,
-      model,
-    };
-  } else {
-    throw new Error(`Unsupported provider: ${provider}`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -181,10 +211,12 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
     }
 
     const timeout = getTimeoutForProvider(providerName);
-    const maxAttemptsPerProvider = 2; // Retry once on rate limit
+    const maxAttemptsPerProvider = 2; // Retry once on rate limit / timeout
 
     // Retry loop per provider (Phase 2.3)
     for (let attemptNum = 0; attemptNum < maxAttemptsPerProvider; attemptNum++) {
+      const startedAt = Date.now();
+
       try {
         const response = await callProvider(providerName, model, request, apiKey, timeout);
 
@@ -196,6 +228,7 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
           model,
           status: "success",
           tokensUsed: response.totalTokens,
+          durationMs: Date.now() - startedAt,
         });
 
         // Success! Return with attempt history
@@ -205,40 +238,33 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
         };
       } catch (error) {
         const errorMsg = (error as Error).message;
+        const durationMs = Date.now() - startedAt;
         lastError = error as Error;
 
-        // Check if rate limited
-        if (isRateLimitError(error)) {
-          // Phase 2.4: Record rate limit failure
-          circuitBreaker.recordFailure(providerName, model);
+        // Phase 2.4: every failure counts against this provider's circuit.
+        circuitBreaker.recordFailure(providerName, model);
 
+        const rateLimited = isRateLimitError(error);
+        const timedOut = !rateLimited && isTimeoutError(error);
+        const status: ProviderAttempt["status"] = rateLimited
+          ? "rate_limited"
+          : timedOut
+            ? "timeout"
+            : "error";
+
+        attempts.push({ provider: providerName, model, status, error: errorMsg, durationMs });
+
+        // Phase 2.5: rate limits and timeouts are transient — retry this same
+        // provider once after a backoff before falling back to the next one.
+        // Any other error (auth, bad request) won't fix itself: fall back now.
+        if ((rateLimited || timedOut) && attemptNum < maxAttemptsPerProvider - 1) {
           const backoffMs = calculateBackoffDelay(attemptNum);
+          const reason = rateLimited ? "Rate limited" : `Timed out after ${timeout}ms`;
           console.warn(
-            `Rate limited on ${providerName}/${model}. Waiting ${backoffMs}ms before retry...`
+            `${reason} on ${providerName}/${model}. Waiting ${Math.round(backoffMs)}ms before retry...`
           );
-          attempts.push({
-            provider: providerName,
-            model,
-            status: "rate_limited",
-            error: errorMsg,
-          });
-
-          if (attemptNum < maxAttemptsPerProvider - 1) {
-            // Retry this provider after backoff
-            await sleep(backoffMs);
-            continue;
-          }
-        } else {
-          // Phase 2.4: Record failure in circuit breaker
-          circuitBreaker.recordFailure(providerName, model);
-
-          // Other error (auth, unavailable, etc.)
-          attempts.push({
-            provider: providerName,
-            model,
-            status: "error",
-            error: errorMsg,
-          });
+          await sleep(backoffMs);
+          continue;
         }
 
         // Move to next provider

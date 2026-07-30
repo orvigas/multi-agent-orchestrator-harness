@@ -8,9 +8,11 @@ import type { OrchestratorConfig } from "../config/loadConfig.js";
 export interface ProviderAttempt {
   provider: string;
   model: string;
-  status: "success" | "rate_limited" | "unavailable" | "error";
+  status: "success" | "rate_limited" | "timeout" | "unavailable" | "error";
   error?: string;
   tokensUsed?: number;
+  /** Wall-clock duration of the attempt in ms (Phase 2.5). */
+  durationMs?: number;
 }
 
 export interface ProviderFallbackResult {
@@ -25,7 +27,8 @@ export interface ProviderFallbackResult {
  * Each provider has different error formats.
  */
 export function isRateLimitError(error: unknown): boolean {
-  const msg = (error as any)?.message?.toLowerCase() || "";
+  const err = error as { message?: string; status?: number } | null;
+  const msg = err?.message?.toLowerCase() ?? "";
 
   // Anthropic rate limit errors
   if (msg.includes("rate limit") || msg.includes("429")) return true;
@@ -36,9 +39,46 @@ export function isRateLimitError(error: unknown): boolean {
   if (msg.includes("requests per minute")) return true;
 
   // Generic HTTP 429
-  if ((error as any)?.status === 429) return true;
+  if (err?.status === 429) return true;
 
   return false;
+}
+
+/**
+ * Error thrown when a provider call exceeds its timeout budget (Phase 2.5).
+ * Carries the provider/model/budget so the retry loop and logs can be precise.
+ */
+export class LLMTimeoutError extends Error {
+  readonly provider: string;
+  readonly model: string;
+  readonly timeoutMs: number;
+
+  constructor(provider: string, model: string, timeoutMs: number) {
+    super(`Timeout after ${timeoutMs}ms calling ${provider}/${model}`);
+    this.name = "LLMTimeoutError";
+    this.provider = provider;
+    this.model = model;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/**
+ * Check if an error is a timeout / aborted request (Phase 2.5).
+ * Recognizes our own LLMTimeoutError plus the abort errors both SDKs raise
+ * when an AbortSignal fires (Anthropic/OpenAI `APIUserAbortError`, DOMException
+ * `AbortError`) and plain network timeouts (ETIMEDOUT / ESOCKETTIMEDOUT).
+ */
+export function isTimeoutError(error: unknown): boolean {
+  if (error instanceof LLMTimeoutError) return true;
+
+  const err = error as { name?: string; code?: string; message?: string } | null;
+  if (!err) return false;
+
+  if (err.name === "AbortError" || err.name === "APIUserAbortError") return true;
+  if (err.code === "ETIMEDOUT" || err.code === "ESOCKETTIMEDOUT") return true;
+
+  const msg = err.message?.toLowerCase() ?? "";
+  return msg.includes("timed out") || msg.includes("timeout") || msg.includes("request was aborted");
 }
 
 /**
@@ -94,9 +134,8 @@ export function getFallbackProviders(
 export async function selectProviderWithFallback(
   role: string,
   config: OrchestratorConfig,
-  maxRetries: number = 2
+  _maxRetries: number = 2
 ): Promise<ProviderFallbackResult> {
-  const attempts: ProviderAttempt[] = [];
   const providers = getFallbackProviders(role, config);
 
   if (providers.length === 0) {
@@ -160,9 +199,11 @@ export function formatFallbackResult(result: ProviderFallbackResult): string {
     lines.push("Fallback chain:");
     for (let i = 0; i < result.attempts.length; i++) {
       const attempt = result.attempts[i]!;
-      const symbol = attempt.status === "success" ? "✅" : "❌";
+      const symbol =
+        attempt.status === "success" ? "✅" : attempt.status === "timeout" ? "⏱️" : "❌";
+      const took = attempt.durationMs !== undefined ? ` (${attempt.durationMs}ms)` : "";
       lines.push(
-        `  ${symbol} [${i}] ${attempt.provider}/${attempt.model}: ${attempt.status}`
+        `  ${symbol} [${i}] ${attempt.provider}/${attempt.model}: ${attempt.status}${took}`
       );
       if (attempt.error) {
         lines.push(`      Error: ${attempt.error}`);
