@@ -30,38 +30,40 @@ function findNamedDeclaration(project: Project, name: string): Node | null {
   return null;
 }
 
-function toEvidence(node: Node, relevanceNote: string, maxLinesPerItem: number): EvidenceItem {
+function toEvidence(node: Node, relevanceNote: string, maxLinesPerItem: number, targetPath?: string): EvidenceItem {
   const sourceFile = node.getSourceFile();
-  const relPath = path.relative(process.cwd(), sourceFile.getFilePath());
+  const root = targetPath ?? process.cwd();
+  const relPath = path.relative(root, sourceFile.getFilePath());
   const startLine = node.getStartLineNumber();
   const text = node.getFullText().trim().split("\n").slice(0, maxLinesPerItem).join("\n");
   return { id: makeEvidenceId(relPath, startLine), source: "ast", content: text, relevanceNote };
 }
 
-function findImplementations(project: Project, name: string, maxLinesPerItem: number): EvidenceItem[] {
+function findImplementations(project: Project, name: string, maxLinesPerItem: number, targetPath?: string): EvidenceItem[] {
   const results: EvidenceItem[] = [];
   for (const sourceFile of project.getSourceFiles()) {
     for (const cls of sourceFile.getClasses()) {
       const heritage = [...cls.getImplements(), ...(cls.getExtends() ? [cls.getExtends()!] : [])];
       if (heritage.some((clause) => clause.getText().includes(name))) {
-        results.push(toEvidence(cls, `clase "${cls.getName()}" implementa/extiende "${name}"`, maxLinesPerItem));
+        results.push(toEvidence(cls, `clase "${cls.getName()}" implementa/extiende "${name}"`, maxLinesPerItem, targetPath));
       }
     }
   }
   return results;
 }
 
-function findUsages(declaration: Node, name: string, maxLinesPerItem: number): EvidenceItem[] {
+function findUsages(declaration: Node, name: string, maxLinesPerItem: number, targetPath?: string): EvidenceItem[] {
   if (!("findReferencesAsNodes" in declaration)) return [];
   // @ts-expect-error -- findReferencesAsNodes existe en los nodos con nombre
   // (ReferenceFindableNode) pero no en el tipo base `Node` de ts-morph.
   const refs: Node[] = declaration.findReferencesAsNodes();
   const seen = new Set<string>();
   const results: EvidenceItem[] = [];
+  const root = targetPath ?? process.cwd();
 
   for (const ref of refs) {
     const sourceFile = ref.getSourceFile();
-    const relPath = path.relative(process.cwd(), sourceFile.getFilePath());
+    const relPath = path.relative(root, sourceFile.getFilePath());
     const line = ref.getStartLineNumber();
     const key = `${relPath}#${line}`;
     if (seen.has(key)) continue;
@@ -80,17 +82,17 @@ function findUsages(declaration: Node, name: string, maxLinesPerItem: number): E
   return results;
 }
 
-export function astQuery(query: string, maxLinesPerItem = 40): EvidenceItem[] {
-  const project = buildStructuralIndex();
+export function astQuery(query: string, maxLinesPerItem = 40, targetPath?: string): EvidenceItem[] {
+  const project = buildStructuralIndex(targetPath);
   const { kind, name } = parseQuery(query);
   if (!name) return [];
 
-  if (kind === "implements") return findImplementations(project, name, maxLinesPerItem);
+  if (kind === "implements") return findImplementations(project, name, maxLinesPerItem, targetPath);
 
   const declaration = findNamedDeclaration(project, name);
   if (!declaration) return [];
 
-  if (kind === "usages") return findUsages(declaration, name, maxLinesPerItem);
+  if (kind === "usages") return findUsages(declaration, name, maxLinesPerItem, targetPath);
 
-  return [toEvidence(declaration, `definición de "${name}"`, maxLinesPerItem)];
+  return [toEvidence(declaration, `definición de "${name}"`, maxLinesPerItem, targetPath)];
 }
