@@ -1,0 +1,17 @@
+mergeManager:
+  # Local, sin git (ver .harness/governance/merge-manager.md): un log
+  # append-only de "releases", una línea JSON por ticket promovido.
+  releaseLogPath: ".harness/releases.jsonl"
+  # Un archivo por escalación (conflicto irresoluble), en vez de notificar a
+  # un servicio externo (Slack/PagerDuty) que este proyecto no tiene configurado.
+  escalationDir: ".harness/escalations"
+  # Sin git no hay forma de deshacer una escritura real al árbol de trabajo.
+  # true por defecto: corre toda la pipeline de verdad (detección de
+  # conflictos contra el árbol real, entrada en el release log, cierre de
+  # ticket) pero promote_patch NO escribe. Cambiar a false es una decisión
+  # humana deliberada y posterior, no parte de la implementación de esta capa.
+  dryRun: true
+  # Solo "auto-increment" tiene comportamiento real (lee la cantidad de líneas
+  # de releaseLogPath). El how-to menciona "semver" pero nunca lo implementa
+  # ("detalles omitidos por brevedad") — tampoco se implementa acá.
+  tagNamingStrategy: "auto-increment"
