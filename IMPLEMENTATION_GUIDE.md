@@ -1,5 +1,11 @@
 # Cómo Implementar el Harness Multiagente en tu Proyecto — Guía para Dummies
 
+> **⚠️ Documento de visión, no descripción del estado actual.** Ver la nota
+> equivalente en `QUICK_START.md` / `.claude/CLAUDE.md` para el detalle
+> completo de qué existe hoy vs. qué es aspiracional acá (Docker, SSH+git
+> real, PostgreSQL, LangSmith, Sentry, webhooks, `TARGET_REPO` separado, los
+> 10 roles con LLMs reales, etc.).
+
 **Para:** Desarrolladores que quieren automatizar la implementación de tickets con IA, pero no tienen contexto de este proyecto.
 
 **Duración estimada:** 3-4 horas de setup inicial + 30 min de configuración por proyecto destino.
@@ -783,11 +789,11 @@ Acceptance criteria:
 ```bash
 cd multiagent-harness
 
-# Carga tu proyecto destino como variable
-export TARGET_REPO=../mi-proyecto-java
-
-# Inicia el orquestador (simplificado para esta guía)
-node src/start.js --ticket-id "PROJ-123" --repo $TARGET_REPO
+# TARGET_REPO separado del harness: NO implementado todavía (el harness hoy
+# solo opera sobre sí mismo — ver categoría 2 del análisis de gaps, es la
+# mayor brecha conceptual frente a esta guía). Por ahora el ticket se
+# procesa contra ESTE repo.
+npx tsx src/index.ts --ticket-id "PROJ-123" --title "Agregar validación de email en RegisterService"
 ```
 
 Ahora el harness va a:
@@ -1528,7 +1534,7 @@ Aquí está TODO conectado. Si ves este diagrama y lo entiendes, estás listo:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Knowledge Engine (Capa 2)                                               │
 │  • Busca en el repo: ¿dónde está ValidationService?                    │
-│  • Usa tree-sitter (AST) + vector search + grep                         │
+│  • Usa ts-morph (AST) + TF-IDF/coseno (sin embeddings) + grep            │
 │  • Verifica: ¿la evidencia es suficiente?                               │
 │  • Resultado: confirmedEvidence[] (no doc completos)                    │
 └────────────────────────────┬────────────────────────────────────────────┘
@@ -1633,27 +1639,29 @@ RESULTADO: Código real, mergeado, en producción
 
 ## Parte 14: "Quiero experimentar rápido"
 
-Si solo quieres probar sin usar tu proyecto real:
+Si solo quieres probar sin usar tu proyecto real, esto SÍ existe hoy:
 
 ```bash
-# Opción A: Usa el repo de demo que viene con el harness
 cd multiagent-harness
-npm run demo
 
-# Opción B: Clona un repo simple de prueba
-git clone git@github.com:example/simple-node-app.git
-cd simple-node-app
-mkdir -p .harness/{rules,architecture,governance}
+# Backlog de demo hardcodeado (3 tickets sobre este mismo repo)
+npm run dev
 
-# Copia los configs básicos
-cp ../multiagent-harness/.harness/rules/* .harness/rules/
-cp ../multiagent-harness/.harness/architecture/* .harness/architecture/
-cp ../multiagent-harness/.harness/governance/* .harness/governance/
-
-# Prueba desde el harness
-cd ../multiagent-harness
-npm run test -- --target ../simple-node-app
+# O cada capa por separado, aislada del resto (Knowledge Engine, Planner,
+# Implementation, Validation, Recovery, Quality Gate, Merge Manager):
+npm run kb:demo
+npm run planner:demo
+npm run implementation:demo
+npm run validation:demo
+npm run recovery:demo
+npm run quality-gate:demo
+npm run merge-manager:demo
 ```
+
+La Opción B de abajo (clonar un repo de prueba separado, `--target`) NO
+existe todavía — el harness está acoplado a `process.cwd()` en varios
+módulos (sandbox, indexing, quality-gate). Ver categoría 2 del análisis de
+gaps ("desacoplar el repo destino del harness").
 
 ---
 

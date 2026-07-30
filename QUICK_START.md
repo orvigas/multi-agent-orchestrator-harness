@@ -1,5 +1,13 @@
 # Setup Rápido del Harness — Quick Reference
 
+> **⚠️ Documento de visión, no descripción del estado actual.** Este archivo
+> describe un despliegue de producción hipotético (Docker, SSH+GitHub real,
+> LangSmith, múltiples providers reales). El proyecto en este repo hoy es un
+> harness reproducible y 100% local: cada rol "IA" es una heurística
+> determinista (nunca llama a un LLM real), no hay Docker (sandboxing =
+> copia a `os.tmpdir()`) y `.harness/` vive en este mismo repo. Ver
+> `.claude/CLAUDE.md` para el estado real y qué de lo de abajo ya existe.
+
 **Imprime esto o guárdalo como bookmark. Todo aquí está orientado al copy-paste.**
 
 ---
@@ -80,20 +88,20 @@ nano .harness/rules/forbidden-zones.md
 ```bash
 cd multiagent-harness
 
-# Crea un ticket simple en GitHub/Jira
-# (Ej: "Agregar validación de email en LoginService")
+# NO hay tracker externo conectado (sin GitHub/Jira reales, ver categoría 3
+# del análisis de gaps) — --ticket-id/--title/--description arman un ticket
+# ad-hoc local, procesado sobre ESTE MISMO repo (no hay un $TARGET_REPO
+# separado todavía).
+npm run harness:execute -- --ticket-id PROJ-123 --title "Agregar validación de email en LoginService"
 
-# Ejecuta el harness
-npm run harness:execute -- --ticket-id PROJ-123
-
-# Mira los logs — debería ver:
-# [Orchestrator] Iniciando PROJ-123
-# [Knowledge Engine] Buscando LoginService...
-# [Planner] Generando plan...
-# [Implementation] Generando código...
-# [Validation] Compilando... Tests... ✅
-# [Merge Manager] Mergeando a main...
-# [Orchestrator] PROJ-123 COMPLETADO
+# Mira los logs — deberías ver:
+# (bootstrap) Config cargada: N roles, N providers.
+# (select_next_ticket) Ticket seleccionado: PROJ-123 ...
+# (knowledge_engine) ... items de evidencia ...
+# (planning) Discovery/Planning/Validation -> valid ...
+# (implementation) N task(s) del plan pasaron Implementation Loop + Validation Pipeline + Quality Gate + Merge Manager de punta a punta.
+# Merge Manager promueve el patch al árbol real (o hace dry-run — ver
+# config/merge-manager.yml, dryRun:true por defecto), NUNCA "git merge a main"
 ```
 
 ---
@@ -195,30 +203,30 @@ EOF
 ## ✨ Comandos útiles (después que funciona)
 
 ```bash
-# Ver logs en vivo
-npm run harness:logs --follow
+# Ver el decision log de cada corrida (lee .harness/runs.jsonl) — real, sin --follow
+npm run harness:logs
 
-# Ver coste gastado hoy
-npm run harness:costs --days=1
+# Ver coste (SIMULADO — ningún LLM real cobra todavía) de los últimos N días
+npm run harness:costs -- --days=1
 
-# Ver estado de checkpoints
-npm run harness:checkpoints
+# harness:checkpoints / harness:rollback: NO implementados todavía — requieren
+# un checkpointer persistente (SQLite/Postgres) en vez de MemorySaver en
+# memoria (ver ADR 0001 y el análisis de gaps, categoría 2).
 
-# Time-travel: volver a un paso anterior
-npm run harness:rollback --ticket-id PROJ-123 --step=4
-
-# Monitoreo en dashboard
+# Monitoreo en dashboard (opt-in real, cero código — ver .env.example)
 open https://smith.langchain.com  # LangSmith
 
-# Alertas en Slack
-npm run harness:config -- --slack-webhook https://hooks.slack.com/...
+# Alertas en Slack: NO implementado (ver categoría 3 del análisis de gaps —
+# contradice el harness local/sin credenciales de servicios externos).
+# El equivalente real que SÍ existe: un archivo JSON por escalación en
+# .harness/escalations/ (Merge Manager, Capa 8).
 ```
 
 ---
 
 ## 📚 Si quieres leer más
 
-- **Guía completa para dummies:** `00-implementation-guide-for-dummies.md`
+- **Guía completa para dummies:** `IMPLEMENTATION_GUIDE.md`
 - **Capa 1 (Orchestrator):** `01-orchestrator-langgraph-howto.md`
 - **Capa 2 (Knowledge Engine):** `02-knowledge-engine-loop-howto.md`
 - **Capa 3 (Planner):** `03-planner-loop-howto.md`

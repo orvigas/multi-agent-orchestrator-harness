@@ -1,5 +1,11 @@
 # Arquitectura Visual Completa del Harness
 
+> **⚠️ Documento de visión, no descripción del estado actual.** Ver la nota
+> equivalente en `QUICK_START.md` / `.claude/CLAUDE.md`. En particular: sin
+> Docker (sandbox = copia a `os.tmpdir()`), sin git remoto/SSH/push, sin
+> PostgreSQL/LangSmith/Sentry conectados, y el Knowledge Engine usa
+> `ts-morph` + TF-IDF/coseno (no tree-sitter ni embeddings reales).
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                    TU MÁQUINA (Local)                                          │
@@ -107,7 +113,7 @@
 │    Tareas:                                                                                 │
 │    • git clone mi-proyecto (dentro del contenedor, no toca tu máquina)                     │
 │    • Busca: ¿dónde está LoginService?                                                      │
-│    • Ejecuta tree-sitter, grep, vector search                                              │
+│    • Ejecuta ts-morph (AST), grep, TF-IDF/coseno (sin embeddings reales)                    │
 │    • Lee .harness/rules/*.md del proyecto (constraints)                                     │
 │    Result: confirmedEvidence[] (archivos + snippets relevantes)                            │
 │    Checkpoint en PostgreSQL: "Knowledge completado"                                         │
