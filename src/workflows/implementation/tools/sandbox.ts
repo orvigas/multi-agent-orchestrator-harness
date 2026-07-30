@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { detectStack, type Stack } from "../../../services/stack.js";
 import type { Patch } from "../types.js";
 
 export interface Sandbox {
@@ -18,16 +19,66 @@ export interface ApplyResult {
 }
 
 const SANDBOX_ROOT_NAME = "multiagent-harness-sandboxes";
-const COPIED_ENTRIES = [
-  "src",
-  ".harness",
-  "config",
-  "package.json",
-  "package-lock.json", // requerido por `npm audit` (Capa 5, security stage)
-  "tsconfig.json",
-  "eslint.config.js",
-  "eslint.sonar.config.js", // requerido por el check "sonar" (Capa 7, Quality Gate)
-];
+
+// Entries a copiar según stack detectado. TypeScript es el default/fallback.
+const COPIED_ENTRIES_BY_STACK: Record<Stack["language"], string[]> = {
+  typescript: [
+    "src",
+    "test",
+    "tests",
+    ".harness",
+    "config",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "tsconfig.json",
+    "eslint.config.js",
+    "eslint.sonar.config.js",
+    ".eslintrc.json",
+    ".eslintrc.js",
+    "vitest.config.ts",
+    "jest.config.js",
+  ],
+  javascript: [
+    "src",
+    "test",
+    "tests",
+    ".harness",
+    "config",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    ".eslintrc.json",
+    ".eslintrc.js",
+    "eslint.config.js",
+    "jest.config.js",
+  ],
+  python: [
+    "src",
+    "tests",
+    ".harness",
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "pytest.ini",
+    "tox.ini",
+  ],
+  go: [
+    "cmd",
+    "internal",
+    ".harness",
+    "go.mod",
+    "go.sum",
+    ".golangci.yml",
+    ".golangci.yaml",
+    "Makefile",
+  ],
+  unknown: ["src", ".harness", "config", "package.json"],
+};
 
 function sanitize(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -37,21 +88,27 @@ function sanitize(id: string): string {
 // symlinkea node_modules (sin reinstalar) — nunca toca la rama real. El
 // how-to usa git worktree; este proyecto no es un repo git (ver ADR de la
 // Capa 1 sobre MemorySaver para el mismo tipo de sustitución pragmática).
-export function createSandbox(taskId: string): Sandbox {
+export function createSandbox(taskId: string, targetPath?: string): Sandbox {
   const root = path.join(os.tmpdir(), SANDBOX_ROOT_NAME);
   fs.mkdirSync(root, { recursive: true });
   const sandboxPath = fs.mkdtempSync(path.join(root, `${sanitize(taskId)}-`));
 
-  const projectRoot = process.cwd();
-  for (const entry of COPIED_ENTRIES) {
+  const projectRoot = targetPath ?? process.cwd();
+  const stack = detectStack(projectRoot);
+  const entriesToCopy = COPIED_ENTRIES_BY_STACK[stack.language];
+
+  for (const entry of entriesToCopy) {
     const from = path.join(projectRoot, entry);
     if (!fs.existsSync(from)) continue;
     fs.cpSync(from, path.join(sandboxPath, entry), { recursive: true });
   }
 
-  const nodeModulesFrom = path.join(projectRoot, "node_modules");
-  if (fs.existsSync(nodeModulesFrom)) {
-    fs.symlinkSync(nodeModulesFrom, path.join(sandboxPath, "node_modules"), "dir");
+  // Symlink node_modules (Node/TypeScript/JavaScript projects)
+  if (stack.language === "typescript" || stack.language === "javascript") {
+    const nodeModulesFrom = path.join(projectRoot, "node_modules");
+    if (fs.existsSync(nodeModulesFrom)) {
+      fs.symlinkSync(nodeModulesFrom, path.join(sandboxPath, "node_modules"), "dir");
+    }
   }
 
   return { path: sandboxPath };

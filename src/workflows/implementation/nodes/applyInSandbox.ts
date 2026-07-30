@@ -7,7 +7,7 @@ export function applyInSandboxNode(state: ImplementationStateType): {
   quickCheck: QuickCheckResult | null;
 } {
   const taskId = state.task?.id ?? "unknown";
-  const sandbox = createSandbox(taskId);
+  const sandbox = createSandbox(taskId, state.targetPath);
   const applyResult = applyPatch(sandbox.path, state.patch!);
 
   return {
