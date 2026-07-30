@@ -67,7 +67,7 @@ Every layer's LLM-calling roles (planner, discovery, implementer, recovery diagn
 
 ### Config loading
 
-`config/*.yml` (one per layer) + `src/config/load*Config.ts` loaders. Every loader except `loadProvidersConfig` (which also validates env vars) is built from the shared `createYamlConfigLoader<T>` factory in `src/config/yamlConfigLoader.ts` — memoized per process. Add a new layer's config through that factory, not a hand-rolled copy. Note: `config/budgets.yml` is currently unused by any loader — Layer 1's default token/cost budgets are hardcoded directly in `src/orchestrator/state.ts` instead.
+`config/*.yml` (one per layer) + `src/config/load*Config.ts` loaders. Every loader except `loadProvidersConfig` (which also validates env vars) is built from the shared `createYamlConfigLoader<T>` factory in `src/config/yamlConfigLoader.ts` — memoized per process. Add a new layer's config through that factory, not a hand-rolled copy. `config/orchestrator.yml` (`loadOrchestratorConfig.ts`) holds Layer 1's own budgets/deadline defaults, consumed by `src/orchestrator/state.ts` and `src/index.ts` — note its config interface is deliberately named `OrchestratorRuntimeConfig`, not `OrchestratorConfig`, to avoid colliding with `loadConfig.ts`'s existing `OrchestratorConfig` (providers+roles, threaded through `state.config`). `loadProvidersConfig` also composes a single merged role registry from every layer's own `roles:` block (`planner.yml`, `knowledge-engine.yml`, etc.) — `providers.yml` itself only declares the `orchestrator` role plus the raw provider/apiKeyEnv map; see `src/config/roles.test.ts` for the validation that catches a role pointing at an undeclared provider.
 
 ### `.harness/` — layered project context
 
