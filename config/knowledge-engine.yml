@@ -1,0 +1,21 @@
+indexing:
+  structural:
+    parser: ts-morph # TypeScript Compiler API; equivalente al "Tree-sitter" del how-to para un repo 100% TS
+    storage: memory # cache en memoria por proceso; ver src/workflows/knowledge-engine/indexing/buildIndexes.ts
+    reindexOn: process-start
+  vector:
+    embeddingModel: local-tfidf # sin proveedor externo: TF-IDF + similitud coseno sobre chunks
+    store: memory
+    chunking: fixed-window
+    maxChunkLines: 60
+retrieval:
+  maxIterations: 5
+  maxEvidenceItems: 12
+  maxLinesPerItem: 40
+roles:
+  retriever:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001 # barato: solo decide UNA acción por vuelta
+  kb_verifier:
+    provider: anthropic
+    model: claude-sonnet-5 # más capaz: juicio de suficiencia
