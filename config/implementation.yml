@@ -1,0 +1,14 @@
+roles:
+  implementer:
+    provider: anthropic
+    model: claude-opus-4-8 # la task de generar código se beneficia de más razonamiento
+
+implementation:
+  maxIterationsPerTask: 3
+  sandbox:
+    # El how-to usa "git-worktree", pero este proyecto no es un repo git.
+    # "temp-copy": copia src/.harness/config a un directorio temporal del OS
+    # con node_modules symlinkeado, misma garantía de "nunca tocar la rama
+    # real" sin depender de git. Ver src/workflows/implementation/tools/sandbox.ts.
+    mode: temp-copy
+    cleanupOnEscalate: false # deja el sandbox para inspección humana
