@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.harness.local/
+
+# Artefactos runtime del propio harness (Capa 8, Merge Manager) — generados
+# por npm run dev / merge-manager:demo, no son código fuente.
+.harness/releases.jsonl
+.harness/escalations/
+
+# Settings locales de Claude Code (por-máquina, no compartidos).
+.claude/settings.local.json
+
+# Cruft del sistema operativo / build.
+.DS_Store
+*.tsbuildinfo
