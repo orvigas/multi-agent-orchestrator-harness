@@ -1,0 +1,14 @@
+roles:
+  discovery:
+    provider: anthropic
+    model: claude-sonnet-5
+  planner:
+    provider: anthropic
+    model: claude-opus-4-8 # el paso que más se beneficia de razonamiento fuerte
+  plan_validator:
+    provider: openai # deliberadamente OTRO proveedor, no solo otro rol
+    model: gpt-5.1
+
+planning:
+  maxIterations: 4 # tope de revise_plan + revisit_discovery combinados
+  discoveryGapThreshold: 0.5 # % de issues "discovery_gap" que dispara revisit_discovery
