@@ -6,6 +6,7 @@ import {
   calculateBackoffDelay,
   formatFallbackResult,
 } from "./providerFallback.js";
+import { getGlobalCircuitBreaker } from "./llmCircuitBreaker.js";
 import type { OrchestratorConfig } from "../config/loadConfig.js";
 import type { ProviderAttempt } from "./providerFallback.js";
 
@@ -167,6 +168,18 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
       continue;
     }
 
+    // Phase 2.4: Check circuit breaker
+    const circuitBreaker = getGlobalCircuitBreaker();
+    if (!circuitBreaker.isAvailable(providerName, model)) {
+      attempts.push({
+        provider: providerName,
+        model,
+        status: "unavailable",
+        error: `Provider circuit breaker OPEN (too many failures)`,
+      });
+      continue;
+    }
+
     const timeout = getTimeoutForProvider(providerName);
     const maxAttemptsPerProvider = 2; // Retry once on rate limit
 
@@ -174,6 +187,9 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
     for (let attemptNum = 0; attemptNum < maxAttemptsPerProvider; attemptNum++) {
       try {
         const response = await callProvider(providerName, model, request, apiKey, timeout);
+
+        // Phase 2.4: Record success in circuit breaker
+        circuitBreaker.recordSuccess(providerName, model);
 
         attempts.push({
           provider: providerName,
@@ -193,6 +209,9 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
 
         // Check if rate limited
         if (isRateLimitError(error)) {
+          // Phase 2.4: Record rate limit failure
+          circuitBreaker.recordFailure(providerName, model);
+
           const backoffMs = calculateBackoffDelay(attemptNum);
           console.warn(
             `Rate limited on ${providerName}/${model}. Waiting ${backoffMs}ms before retry...`
@@ -210,6 +229,9 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
             continue;
           }
         } else {
+          // Phase 2.4: Record failure in circuit breaker
+          circuitBreaker.recordFailure(providerName, model);
+
           // Other error (auth, unavailable, etc.)
           attempts.push({
             provider: providerName,
