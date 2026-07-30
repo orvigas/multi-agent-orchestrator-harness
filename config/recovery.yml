@@ -1,0 +1,15 @@
+roles:
+  recovery_diagnostician:
+    provider: anthropic
+    model: claude-sonnet-5
+  recovery_strategist:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001 # decisión acotada, no necesita el modelo más caro
+
+recovery:
+  maxIterations: 3
+  fallbackModelsForImplementer: # usados por change_model, en orden
+    - provider: openrouter
+      model: qwen/qwen3-coder
+    - provider: openai
+      model: gpt-5.1
