@@ -187,6 +187,22 @@ export function calculateBackoffDelay(attemptNumber: number): number {
 }
 
 /**
+ * Phase 2.6: Calculate adaptive backoff based on provider's failure history.
+ * Strategy: if a provider is accumulating failures, give it more time to recover.
+ *
+ * - 0-1 consecutive failures: provider is generally healthy, use quick retry
+ * - 2-3 consecutive failures: elevated stress, normal backoff
+ * - 4+ consecutive failures: approaching circuit breach, longer backoff to let service breathe
+ *
+ * Returns a multiplier (1.0 = normal, 2.0 = double time, etc.) to scale the exponential backoff.
+ */
+export function calculateAdaptiveBackoffMultiplier(consecutiveFailures: number): number {
+  if (consecutiveFailures <= 1) return 1.0;      // Healthy: normal backoff
+  if (consecutiveFailures <= 3) return 1.5;      // Stressed: 50% longer
+  return 2.5;                                    // Critical: 2.5x longer (give service time)
+}
+
+/**
  * Format provider fallback result for logging.
  */
 export function formatFallbackResult(result: ProviderFallbackResult): string {

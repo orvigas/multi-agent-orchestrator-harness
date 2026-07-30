@@ -6,6 +6,7 @@ import {
   LLMTimeoutError,
   getFallbackProviders,
   calculateBackoffDelay,
+  calculateAdaptiveBackoffMultiplier,
   formatFallbackResult,
 } from "./providerFallback.js";
 import { getGlobalCircuitBreaker } from "./llmCircuitBreaker.js";
@@ -258,10 +259,17 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
         // provider once after a backoff before falling back to the next one.
         // Any other error (auth, bad request) won't fix itself: fall back now.
         if ((rateLimited || timedOut) && attemptNum < maxAttemptsPerProvider - 1) {
-          const backoffMs = calculateBackoffDelay(attemptNum);
+          const baseBackoffMs = calculateBackoffDelay(attemptNum);
+          // Phase 2.6: Adapt backoff based on provider's failure history.
+          // If the provider is accumulating failures, give it more time to recover.
+          const metrics = circuitBreaker.getProviderMetrics(providerName, model);
+          const adaptiveMultiplier = metrics
+            ? calculateAdaptiveBackoffMultiplier(metrics.consecutiveFailures)
+            : 1.0;
+          const backoffMs = baseBackoffMs * adaptiveMultiplier;
           const reason = rateLimited ? "Rate limited" : `Timed out after ${timeout}ms`;
           console.warn(
-            `${reason} on ${providerName}/${model}. Waiting ${Math.round(backoffMs)}ms before retry...`
+            `${reason} on ${providerName}/${model}. Waiting ${Math.round(backoffMs)}ms before retry (adaptive: ${adaptiveMultiplier.toFixed(1)}x)...`
           );
           await sleep(backoffMs);
           continue;
