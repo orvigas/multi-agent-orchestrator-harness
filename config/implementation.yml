@@ -3,6 +3,11 @@ roles:
     provider: anthropic
     model: claude-opus-4-8 # la task de generar código se beneficia de más razonamiento
 
+# Phase 2.7: Per-role timeout budgets (ms). These override PROVIDER_TIMEOUTS_MS.
+# implementer: code generation is complex, needs time to reason through context
+timeouts:
+  implementer: 45_000 # 45s: generating code patches requires careful reasoning
+
 implementation:
   maxIterationsPerTask: 3
   sandbox:

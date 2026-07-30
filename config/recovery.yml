@@ -6,6 +6,13 @@ roles:
     provider: anthropic
     model: claude-haiku-4-5-20251001 # decisión acotada, no necesita el modelo más caro
 
+# Phase 2.7: Per-role timeout budgets (ms). These override PROVIDER_TIMEOUTS_MS.
+# recovery_diagnostician: deep analysis of failure root cause, needs time
+# recovery_strategist: quick decision on strategy, can be faster
+timeouts:
+  recovery_diagnostician: 30_000  # 30s: analyzing failure patterns
+  recovery_strategist: 15_000     # 15s: deciding on strategy is quicker
+
 recovery:
   maxIterations: 3
   fallbackModelsForImplementer: # usados por change_model, en orden

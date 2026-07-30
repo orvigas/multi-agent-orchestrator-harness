@@ -16,6 +16,27 @@ providers:
 # "implementer" aquí decía openrouter/qwen3-coder mientras
 # implementation.yml decía anthropic/claude-opus-4-8) — ver
 # src/config/roles.test.ts, que ahora falla si eso vuelve a pasar.
+
+# Phase 2.7: Per-role timeout budgets (ms). Overrides PROVIDER_TIMEOUTS_MS for specific roles.
+# Different roles have different time requirements:
+# - discovery/implementer: complex reasoning, need more time
+# - planner: most complex, needs longest budget
+# - validators/strategists: quick checks, need less time
+roleTimeouts:
+  # Planner layer
+  discovery: 45_000
+  planner: 60_000
+  plan_validator: 15_000
+  # Implementation layer
+  implementer: 45_000
+  # Recovery layer
+  recovery_diagnostician: 30_000
+  recovery_strategist: 15_000
+  # Knowledge Engine layer
+  evidence_retriever: 40_000
+  # Quality Gate layer (if it uses LLM)
+  quality_assessor: 20_000
+
 roles:
   orchestrator:
     provider: anthropic

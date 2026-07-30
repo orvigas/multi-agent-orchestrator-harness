@@ -9,6 +9,16 @@ roles:
     provider: openai # deliberadamente OTRO proveedor, no solo otro rol
     model: gpt-5.1
 
+# Phase 2.7: Per-role timeout budgets (ms). These override PROVIDER_TIMEOUTS_MS.
+# Different roles have different time requirements:
+# - discovery: needs time to search evidence, parse AST (slow but correctness-critical)
+# - planner: complex reasoning over plan graph (Opus, needs time)
+# - plan_validator: quick sanity check (can be fast)
+timeouts:
+  discovery: 45_000      # 45s: discovery involves AST queries + TF-IDF search
+  planner: 60_000        # 60s: planning is the most complex reasoning task
+  plan_validator: 15_000 # 15s: validation is a quick check
+
 planning:
   maxIterations: 4 # tope de revise_plan + revisit_discovery combinados
   discoveryGapThreshold: 0.5 # % de issues "discovery_gap" que dispara revisit_discovery

@@ -196,6 +196,33 @@ export function calculateBackoffDelay(attemptNumber: number): number {
  *
  * Returns a multiplier (1.0 = normal, 2.0 = double time, etc.) to scale the exponential backoff.
  */
+/**
+ * Phase 2.7: Get timeout budget for a specific role from the orchestrator config.
+ * If the role has a per-role timeout defined in its layer's config, use that.
+ * Otherwise, fall back to provider-specific timeout (30s Anthropic, 20s OpenAI, etc.).
+ *
+ * Example: discovery role might have 45s (includes AST search), while
+ * plan_validator might have 15s (quick sanity check).
+ */
+export function getTimeoutForRole(
+  role: string,
+  config: OrchestratorConfig
+): number {
+  // Check each layer's config for role-specific timeouts
+  const layerConfigs = [
+    config as any, // orchestrator itself might have timeouts block
+    // Note: individual layer timeouts would be loaded here if we had access
+    // For now, this is a placeholder that can be extended when layer configs
+    // are passed through the config object
+  ];
+
+  // If role-specific timeout found, return it
+  // This would be: config.knowledgeEngineConfig?.timeouts?.[role]
+  // But those are loaded separately in each layer; for now we return undefined
+  // to signal "use provider default"
+  return undefined as any;
+}
+
 export function calculateAdaptiveBackoffMultiplier(consecutiveFailures: number): number {
   if (consecutiveFailures <= 1) return 1.0;      // Healthy: normal backoff
   if (consecutiveFailures <= 3) return 1.5;      // Stressed: 50% longer

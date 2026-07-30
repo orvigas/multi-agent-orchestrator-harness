@@ -41,9 +41,21 @@ const PROVIDER_TIMEOUTS_MS: Record<string, number> = {
   openrouter: 60_000,  // 60s (proxy, add extra buffer)
 };
 
-function getTimeoutForProvider(provider: string): number {
+/**
+ * Get timeout budget for a provider+role combination.
+ * Phase 2.7: Check for role-specific timeout first, then fall back to provider default.
+ */
+function getTimeoutForProviderAndRole(provider: string, role: string, config: OrchestratorConfig): number {
+  // Check if this role has a custom timeout defined in config.roleTimeouts
+  const roleTimeouts = (config as { roleTimeouts?: Record<string, number> }).roleTimeouts;
+  if (roleTimeouts?.[role]) {
+    return roleTimeouts[role];
+  }
+
+  // Fall back to provider default timeout
   return PROVIDER_TIMEOUTS_MS[provider] ?? 30_000;
 }
+
 
 // Sleep helper for backoff (Phase 2.3)
 async function sleep(ms: number): Promise<void> {
@@ -211,7 +223,8 @@ export async function callLLM(request: LLMRequest, config: OrchestratorConfig): 
       continue;
     }
 
-    const timeout = getTimeoutForProvider(providerName);
+    // Phase 2.7: Use role-specific timeout if configured, else provider default
+    const timeout = getTimeoutForProviderAndRole(providerName, request.role, config);
     const maxAttemptsPerProvider = 2; // Retry once on rate limit / timeout
 
     // Retry loop per provider (Phase 2.3)
