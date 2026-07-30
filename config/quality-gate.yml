@@ -1,0 +1,24 @@
+roles:
+  quality_gate_reviewer:
+    provider: anthropic
+    model: claude-opus-4-8
+
+qualityGate:
+  coverage:
+    # Cobertura real vía el test runner nativo de Node (--experimental-test-coverage),
+    # sin dependencias nuevas. Deliberadamente NO usa la misma lista que "npm
+    # test": excluye los tests que crean sus propios sandboxes reales y
+    # corren subprocesos de verdad (sandbox.test.ts, quickChecks.test.ts,
+    # exec.test.ts, checkCoverage.test.ts, checkSonar.test.ts) — esos hacen
+    # que medir cobertura sea carísimo (se re-ejecutan por completo en CADA
+    # task, ya que solo el baseline se cachea) sin aportar señal nueva sobre
+    # QUÉ código quedó cubierto. Esta lista es solo los tests de lógica pura.
+    command: "npx tsx --test --experimental-test-coverage src/orchestrator/routing.test.ts src/orchestrator/nodes/implementation.test.ts src/workflows/knowledge-engine/routing.test.ts src/workflows/knowledge-engine/tools.test.ts src/workflows/planner/routing.test.ts src/workflows/planner/validatePlan.test.ts src/workflows/implementation/routing.test.ts src/workflows/validation-pipeline/routing.test.ts src/workflows/recovery/routing.test.ts src/workflows/quality-gate/routing.test.ts"
+    maxDropPct: 0.5 # a partir de aquí ya se reporta como advisory
+    blockingDropPct: 5.0 # a partir de aquí bloquea
+  sonar:
+    # eslint-plugin-sonarjs (real, ver eslint.sonar.config.js) en vez de un
+    # servidor Sonar real, que no existe en este proyecto.
+    eslintConfig: "eslint.sonar.config.js"
+    blockingSmellCount: 10
+    blockingDuplicationPct: 15.0
