@@ -1,0 +1,32 @@
+name: CI
+
+# Corre el propio harness como proyecto de software (typecheck/lint/test) —
+# distinto de "GitHub Actions ejecuta el harness sobre issues abiertos"
+# (IMPLEMENTATION_GUIDE.md §6.7.7), que depende de webhooks/tracker externo
+# y no tiene sentido para este proyecto (ver análisis de gaps, categoría 3).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Valores placeholder — ver .env.example. loadProvidersConfig() solo
+      # valida que existan, nunca llama a un LLM real (todo es determinista).
+      - run: cp .env.example .env
+
+      - run: npm run typecheck
+      - run: npx eslint .
+      - run: npm test
