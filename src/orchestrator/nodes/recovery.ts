@@ -31,6 +31,7 @@ export async function recoveryNode(state: OrchestratorStateType) {
     failedSandboxPath: state.failedSandboxPath,
     recoveryIteration: state.retryCount,
     maxRecoveryIterations: state.maxRetries,
+    targetPath: state.targetPath,
   });
 
   const base = {

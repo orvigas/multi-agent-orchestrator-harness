@@ -8,6 +8,7 @@ import type { Diagnosis } from "./types.js";
 
 function baseState(overrides: Partial<RecoveryStateType> = {}): RecoveryStateType {
   return {
+    targetPath: process.cwd(),
     failureCategory: "Tests",
     validationEvidence: [],
     patchAttempts: [],

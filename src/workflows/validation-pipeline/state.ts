@@ -4,6 +4,12 @@ import type { PlanTask } from "../planner/types.js";
 import type { StageResult, FailureCategory } from "./types.js";
 
 export const ValidationState = Annotation.Root({
+  // Target repo path (heredado del Orchestrator)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   sandboxPath: Annotation<string>({ reducer: (_, n) => n, default: () => "" }),
   patch: Annotation<Patch | null>({ reducer: (_, n) => n, default: () => null }),
   task: Annotation<PlanTask | null>({ reducer: (_, n) => n, default: () => null }),

@@ -16,7 +16,7 @@ export async function knowledgeEngineNode(state: OrchestratorStateType) {
     };
   }
 
-  const result = await knowledgeEngineWorkflow.invoke({ ticket });
+  const result = await knowledgeEngineWorkflow.invoke({ ticket, targetPath: state.targetPath });
   const evidence = result.evidencePackage ?? result.confirmedEvidence;
 
   return {

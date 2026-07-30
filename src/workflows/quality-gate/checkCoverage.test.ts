@@ -24,6 +24,7 @@ test("checkCoverageNode: runs real coverage against a real sandbox and returns a
   const sandbox = createSandbox("qg-coverage-test");
   try {
     const result = await checkCoverageNode({
+      targetPath: process.cwd(),
       validationEvidence: [],
       plan: null,
       task: null,

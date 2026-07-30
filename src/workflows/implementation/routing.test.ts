@@ -5,7 +5,7 @@ import { selectPatternNode } from "./nodes/selectPattern.js";
 import type { ImplementationStateType } from "./state.js";
 
 function baseState(overrides: Partial<ImplementationStateType> = {}): ImplementationStateType {
-  return {
+  return { targetPath: process.cwd(),
     task: { id: "task-1", description: "demo", touchesFiles: [] },
     taskContext: [],
     selectedPattern: "retry",

@@ -16,7 +16,7 @@ export async function plannerNode(state: OrchestratorStateType) {
     };
   }
 
-  const result = await plannerWorkflow.invoke({ ticket, evidence: state.knowledgeEvidence });
+  const result = await plannerWorkflow.invoke({ ticket, evidence: state.knowledgeEvidence, targetPath: state.targetPath });
   const accepted = result.validationVerdict === "valid";
 
   return {

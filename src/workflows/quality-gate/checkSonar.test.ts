@@ -8,6 +8,7 @@ import type { QualityGateStateType } from "./state.js";
 
 function baseState(overrides: Partial<QualityGateStateType>): QualityGateStateType {
   return {
+    targetPath: process.cwd(),
     validationEvidence: [],
     plan: null,
     task: null,

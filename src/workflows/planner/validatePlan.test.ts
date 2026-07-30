@@ -5,7 +5,7 @@ import type { PlannerStateType } from "./state.js";
 import type { Plan } from "./types.js";
 
 function baseState(overrides: Partial<PlannerStateType> = {}): PlannerStateType {
-  return {
+  return { targetPath: process.cwd(),
     ticket: { id: "T-1", title: "demo" },
     evidence: [],
     discovery: { problems: ["demo"], dependencies: ["src/foo.ts"], risks: [] },

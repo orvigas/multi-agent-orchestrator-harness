@@ -4,6 +4,12 @@ import type { EvidenceItem } from "../knowledge-engine/types.js";
 import type { DiscoveryResult, Plan, PlanRevision, ValidationIssue } from "./types.js";
 
 export const PlannerState = Annotation.Root({
+  // Target repo path (heredado del Orchestrator)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   ticket: Annotation<Ticket | null>({ reducer: (_, n) => n, default: () => null }),
   evidence: Annotation<EvidenceItem[]>({ reducer: (_, n) => n, default: () => [] }), // viene del Knowledge Engine
 

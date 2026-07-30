@@ -9,6 +9,12 @@ export function dedupeById(items: EvidenceItem[]): EvidenceItem[] {
 }
 
 export const KnowledgeState = Annotation.Root({
+  // Target repo path (heredado del Orchestrator)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   ticket: Annotation<Ticket | null>({ reducer: (_, n) => n, default: () => null }),
 
   // Qué se ha intentado y qué se descartó — evita repetir búsquedas

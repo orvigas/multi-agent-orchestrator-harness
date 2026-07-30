@@ -140,7 +140,7 @@ export async function implementationNode(state: OrchestratorStateType) {
   const mergeManagerConfig = loadMergeManagerConfig();
 
   for (const { taskId, task } of executionPlan) {
-    const implResult = await implementationWorkflow.invoke({ task });
+    const implResult = await implementationWorkflow.invoke({ task, targetPath: state.targetPath });
     tasksRun += 1;
 
     if (implResult.outcome === "escalate") {
@@ -161,6 +161,7 @@ export async function implementationNode(state: OrchestratorStateType) {
       sandboxPath: implResult.sandboxPath ?? "",
       patch: implResult.patch,
       task,
+      targetPath: state.targetPath,
     });
 
     if (validationResult.verdict === "fail") {
@@ -181,6 +182,7 @@ export async function implementationNode(state: OrchestratorStateType) {
       task,
       plan,
       validationEvidence: validationResult.results,
+      targetPath: state.targetPath,
     });
 
     if (qgResult.verdict === "blocking") {
@@ -212,7 +214,7 @@ export async function implementationNode(state: OrchestratorStateType) {
     const mmResult = await mergeManagerWorkflow.invoke({
       task,
       patch: implResult.patch,
-      targetPath: process.cwd(),
+      targetPath: state.targetPath,
       dryRun: mergeManagerConfig.mergeManager.dryRun,
     });
 

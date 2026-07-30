@@ -7,6 +7,12 @@ import type { ConflictReport } from "../merge-manager/types.js";
 import type { Diagnosis, Strategy, RecoveryEntry } from "./types.js";
 
 export const RecoveryState = Annotation.Root({
+  // Target repo path (heredado del Orchestrator)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   // Entrada: lo que ya sabemos de capas anteriores
   failureCategory: Annotation<FailureCategory | null>({ reducer: (_, n) => n, default: () => null }),
   validationEvidence: Annotation<StageResult[]>({ reducer: (_, n) => n, default: () => [] }),

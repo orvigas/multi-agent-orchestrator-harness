@@ -5,6 +5,12 @@ import type { Patch } from "../implementation/types.js";
 import type { CoverageResult, SonarResult, ReviewFinding, Issue } from "./types.js";
 
 export const QualityGateState = Annotation.Root({
+  // Target repo path (heredado del Orchestrator)
+  targetPath: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => process.cwd(),
+  }),
+
   // Reutilizado, no regenerado
   validationEvidence: Annotation<StageResult[]>({ reducer: (_, n) => n, default: () => [] }),
   plan: Annotation<Plan | null>({ reducer: (_, n) => n, default: () => null }),

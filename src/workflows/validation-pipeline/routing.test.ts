@@ -7,6 +7,7 @@ import type { StageResult } from "./types.js";
 
 function baseState(overrides: Partial<ValidationStateType> = {}): ValidationStateType {
   return {
+    targetPath: process.cwd(),
     sandboxPath: "/tmp/sandbox",
     patch: null,
     task: null,

@@ -5,9 +5,9 @@ import type { MergeManagerStateType } from "./state.js";
 
 function baseState(overrides: Partial<MergeManagerStateType>): MergeManagerStateType {
   return {
+    targetPath: process.cwd(),
     task: null,
     patch: null,
-    targetPath: "",
     dryRun: true,
     conflictReport: null,
     promoted: false,

@@ -4,7 +4,7 @@ import { routeAfterVerification } from "./nodes/routing.js";
 import type { KnowledgeStateType } from "./state.js";
 
 function baseState(overrides: Partial<KnowledgeStateType> = {}): KnowledgeStateType {
-  return {
+  return { targetPath: process.cwd(),
     ticket: { id: "T-1", title: "demo" },
     triedQueries: [],
     discardedEvidence: [],

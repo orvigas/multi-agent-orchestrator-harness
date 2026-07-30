@@ -4,7 +4,7 @@ import { routeAfterValidation } from "./nodes/routing.js";
 import type { PlannerStateType } from "./state.js";
 
 function baseState(overrides: Partial<PlannerStateType> = {}): PlannerStateType {
-  return {
+  return { targetPath: process.cwd(),
     ticket: { id: "T-1", title: "demo" },
     evidence: [],
     discovery: null,
