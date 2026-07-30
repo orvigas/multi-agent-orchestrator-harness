@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
+import { detectStack } from "../../../services/stack.js";
 import { loadContextLayer, type ContextLayer } from "../../../config/loadContext.js";
 import { termFreq, tokenize, computeIdf } from "../tools/textUtils.js";
 import { makeEvidenceId } from "../tools/evidence.js";
@@ -28,22 +29,40 @@ function walk(dir: string, exts: string[], acc: string[] = []): string[] {
   return acc;
 }
 
-// Self-indexing: el "repo destino" de esta demo es el propio harness.
-export function listRepoFiles(): string[] {
-  const root = process.cwd();
-  return [
-    ...walk(path.join(root, "src"), [".ts"]),
-    ...walk(path.join(root, ".harness"), [".md"]),
-  ];
+// Globs dinámicos según stack detectado
+const CODE_GLOBS_BY_LANGUAGE: Record<string, string[]> = {
+  typescript: ["src", "test", "tests"],
+  javascript: ["src", "lib", "test", "tests"],
+  python: ["src", "tests"],
+  go: ["cmd", "internal"],
+};
+
+export function listRepoFiles(targetPath?: string): string[] {
+  const root = targetPath ?? process.cwd();
+  const stack = detectStack(root);
+
+  const codeGlobs = CODE_GLOBS_BY_LANGUAGE[stack.language] || CODE_GLOBS_BY_LANGUAGE.typescript;
+  const codeFiles = codeGlobs.flatMap((glob) => walk(path.join(root, glob), [".ts", ".js", ".py", ".go"]));
+
+  // .harness/ siempre se incluye si existe (reglas y arquitectura)
+  const contextFiles = walk(path.join(root, ".harness"), [".md"]);
+
+  return [...codeFiles, ...contextFiles];
 }
 
 let structuralProject: Project | null = null;
+let structuralProjectPath: string | null = null;
 
-export function buildStructuralIndex(): Project {
-  if (structuralProject) return structuralProject;
+export function buildStructuralIndex(targetPath?: string): Project {
+  const root = targetPath ?? process.cwd();
+  // Cache solo es válido si es para el mismo targetPath
+  if (structuralProject && structuralProjectPath === root) return structuralProject;
+
+  const tsconfigPath = path.resolve(root, "tsconfig.json");
   structuralProject = new Project({
-    tsConfigFilePath: path.resolve(process.cwd(), "tsconfig.json"),
+    tsConfigFilePath: fs.existsSync(tsconfigPath) ? tsconfigPath : undefined,
   });
+  structuralProjectPath = root;
   return structuralProject;
 }
 
@@ -62,18 +81,22 @@ export interface VectorIndex {
 }
 
 let vectorIndex: VectorIndex | null = null;
+let vectorIndexPath: string | null = null;
 
-export function buildVectorIndex(): VectorIndex {
-  if (vectorIndex) return vectorIndex;
+export function buildVectorIndex(targetPath?: string): VectorIndex {
+  const root = targetPath ?? process.cwd();
+  // Cache solo es válido si es para el mismo targetPath
+  if (vectorIndex && vectorIndexPath === root) return vectorIndex;
+
   const chunks: VectorChunk[] = [];
 
-  for (const file of listRepoFiles()) {
+  for (const file of listRepoFiles(root)) {
     const lines = fs.readFileSync(file, "utf8").split("\n");
     for (let start = 0; start < lines.length; start += MAX_CHUNK_LINES) {
       const end = Math.min(start + MAX_CHUNK_LINES, lines.length);
       const text = lines.slice(start, end).join("\n");
       if (!text.trim()) continue;
-      const relPath = path.relative(process.cwd(), file);
+      const relPath = path.relative(root, file);
       chunks.push({
         id: makeEvidenceId(relPath, start + 1, end),
         filePath: relPath,
@@ -86,17 +109,22 @@ export function buildVectorIndex(): VectorIndex {
   }
 
   vectorIndex = { chunks, idf: computeIdf(chunks) };
+  vectorIndexPath = root;
   return vectorIndex;
 }
 
 let staticContextCache: ContextLayer[] | null = null;
+let staticContextPath: string | null = null;
 
 // .harness/rules + .harness/architecture (incl. ADRs): se cargan completos,
 // nunca se buscan con AI, porque son pequeños y estables (mismo patrón
 // "progressive disclosure" que CLAUDE.md).
-export function loadStaticContext(): ContextLayer[] {
-  if (staticContextCache) return staticContextCache;
-  staticContextCache = [...loadContextLayer("rules"), ...loadContextLayer("architecture")];
+export function loadStaticContext(targetPath?: string): ContextLayer[] {
+  const root = targetPath ?? process.cwd();
+  // Cache solo es válido si es para el mismo targetPath
+  if (staticContextCache && staticContextPath === root) return staticContextCache;
+  staticContextCache = [...loadContextLayer("rules", root), ...loadContextLayer("architecture", root)];
+  staticContextPath = root;
   return staticContextCache;
 }
 

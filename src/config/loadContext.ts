@@ -10,27 +10,54 @@ export interface ContextLayer {
   content: string;
 }
 
-const LAYER_DIRS = [
-  { source: "global" as const, dir: path.resolve(__dirname, "../../.harness") },
-  { source: "project" as const, dir: path.resolve(process.cwd(), ".harness") },
-  { source: "local" as const, dir: path.resolve(process.cwd(), ".harness.local") },
-];
+function getLayerDirs(targetPath?: string): Array<{ source: ContextLayer["source"]; dir: string }> {
+  const root = targetPath ?? process.cwd();
+  return [
+    { source: "global" as const, dir: path.resolve(__dirname, "../../.harness") },
+    { source: "project" as const, dir: path.resolve(root, ".harness") },
+    { source: "local" as const, dir: path.resolve(root, ".harness.local") },
+  ];
+}
 
-// Memoizado por `kind`, igual que el resto de los config loaders del
-// harness: sin esto, generatePatchNode (reintenta por iteración),
-// validatePlanNode (reintenta por iteración de Planning) y recovery.subgraph.ts
-// (una vez por intento de Recovery) releen .harness/**/*.md desde disco en
-// cada vuelta del proceso, en vez de una sola vez.
+// Plantillas genéricas para cuando target no tiene .harness/
+const GENERIC_TEMPLATES: Record<string, string> = {
+  rules: `# Zonas prohibidas (plantilla genérica)
+
+El Implementation Loop NUNCA debe escribir en:
+- secrets/
+- **/*.pem, **/*.key
+- vendor/ (dependencias externas)
+- legacy/ (código congelado)
+- node_modules/ (dependencias)
+`,
+
+  architecture: `# Arquitectura (plantilla genérica)
+
+Sin información específica del proyecto.
+Aplicar convenciones estándar del lenguaje.
+`,
+
+  governance: `# Gobernanza (plantilla genérica)
+
+Sin restricciones específicas del proyecto.
+Usar valores por defecto.
+`,
+};
+
+// Cache memoizado por clave (kind + targetPath) para evitar
+// releer .harness/**/*.md en cada iteración del nodo
 const cache = new Map<string, ContextLayer[]>();
 
-export function loadContextLayer(kind: "rules" | "architecture" | "governance"): ContextLayer[] {
-  const cached = cache.get(kind);
+export function loadContextLayer(kind: "rules" | "architecture" | "governance", targetPath?: string): ContextLayer[] {
+  const cacheKey = `${kind}:${targetPath ?? process.cwd()}`;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const layers: ContextLayer[] = [];
   const seenDirs = new Set<string>();
-  for (const { source, dir } of LAYER_DIRS) {
-    if (seenDirs.has(dir)) continue; // evita duplicar cuando global === project (mismo repo)
+
+  for (const { source, dir } of getLayerDirs(targetPath)) {
+    if (seenDirs.has(dir)) continue;
     seenDirs.add(dir);
     const target = path.join(dir, kind);
     if (!fs.existsSync(target)) continue;
@@ -43,16 +70,24 @@ export function loadContextLayer(kind: "rules" | "architecture" | "governance"):
       });
     }
   }
-  // orden de carga = orden de precedencia: lo más específico va al final,
-  // así queda más cerca de la "atención" del modelo si concatenas
-  cache.set(kind, layers);
+
+  // Si no encontró nada en el proyecto, usa plantilla genérica
+  if (layers.length === 0) {
+    layers.push({
+      source: "project",
+      file: `<template: ${kind}>`,
+      content: GENERIC_TEMPLATES[kind],
+    });
+  }
+
+  cache.set(cacheKey, layers);
   return layers;
 }
 
 // Ensambla el bloque de contexto que se inyecta al nodo correspondiente
 // (planner lee architecture+rules, quality-gate lee governance, etc.)
-export function buildContextBlock(kind: "rules" | "architecture" | "governance"): string {
-  return loadContextLayer(kind)
+export function buildContextBlock(kind: "rules" | "architecture" | "governance", targetPath?: string): string {
+  return loadContextLayer(kind, targetPath)
     .map((l) => `<!-- source:${l.source} file:${path.basename(l.file)} -->\n${l.content}`)
     .join("\n\n---\n\n");
 }
