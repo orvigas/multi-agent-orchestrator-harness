@@ -2,6 +2,7 @@ import { Annotation } from "@langchain/langgraph";
 import type { PlanTask } from "../planner/types.js";
 import type { EvidenceItem } from "../knowledge-engine/types.js";
 import type { Patch, PatchAttempt, QuickCheckResult } from "./types.js";
+import type { OrchestratorConfig } from "../../config/loadConfig.js";
 
 export const ImplementationState = Annotation.Root({
   // Target repo path (heredado del Orchestrator)
@@ -9,6 +10,9 @@ export const ImplementationState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => process.cwd(),
   }),
+
+  // Config cargada en boot (heredada del Orchestrator)
+  config: Annotation<OrchestratorConfig | null>({ reducer: (_, n) => n, default: () => null }),
 
   task: Annotation<PlanTask | null>({ reducer: (_, n) => n, default: () => null }),
   taskContext: Annotation<EvidenceItem[]>({ reducer: (_, n) => n, default: () => [] }),

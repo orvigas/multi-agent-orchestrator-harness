@@ -140,7 +140,7 @@ export async function implementationNode(state: OrchestratorStateType) {
   const mergeManagerConfig = loadMergeManagerConfig();
 
   for (const { taskId, task } of executionPlan) {
-    const implResult = await implementationWorkflow.invoke({ task, targetPath: state.targetPath });
+    const implResult = await implementationWorkflow.invoke({ task, targetPath: state.targetPath, config: state.config });
     tasksRun += 1;
 
     if (implResult.outcome === "escalate") {

@@ -6,6 +6,7 @@ import type { ImplementationStateType } from "./state.js";
 
 function baseState(overrides: Partial<ImplementationStateType> = {}): ImplementationStateType {
   return { targetPath: process.cwd(),
+    config: null,
     task: { id: "task-1", description: "demo", touchesFiles: [] },
     taskContext: [],
     selectedPattern: "retry",
