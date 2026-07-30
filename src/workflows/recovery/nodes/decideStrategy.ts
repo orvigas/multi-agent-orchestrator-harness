@@ -1,3 +1,4 @@
+import { callLLM, HARNESS_MODE } from "../../../services/llm.js";
 import type { RecoveryStateType } from "../state.js";
 import type { Strategy } from "../types.js";
 
@@ -13,7 +14,7 @@ import type { Strategy } from "../types.js";
 // patch parcial granular), así que no se producen fuera de esos casos —
 // igual que otras capas dejan valores del tipo alcanzables solo por reglas
 // explícitas, no por la heurística de juicio.
-export function decideStrategyNode(state: RecoveryStateType): { strategy: Strategy; recoveryIteration: number } {
+export async function decideStrategyNode(state: RecoveryStateType): Promise<{ strategy: Strategy; recoveryIteration: number }> {
   const { diagnosis, recoveryIteration, maxRecoveryIterations, patchAttempts } = state;
   const nextIteration = recoveryIteration + 1;
 
@@ -45,6 +46,51 @@ export function decideStrategyNode(state: RecoveryStateType): { strategy: Strate
   }
 
   // Zona de juicio: fallo nuevo, no repetido, no Security.
+  // Modo LLM: pedir a Claude que decida estrategia inteligentemente
+  if (HARNESS_MODE === "llm" && state.config) {
+    try {
+      const userPrompt = `
+Diagnosis: ${diagnosis!.rootCause}
+Confidence: ${diagnosis!.confidence}
+Failed patch attempts: ${patchAttempts.length}
+
+Root cause detail: ${diagnosis!.detail}
+
+This is a NEW failure (not repeated). Decide the recovery strategy:
+- "retry": try patching again (for low-confidence or early-stage failures)
+- "rollback": revert to last known good state (for exhausted attempts)
+- "partial_retry": retry with reduced scope (if available)
+- "change_context": go back to Planning with new understanding
+- "change_model": ask for different problem formulation
+
+Return JSON:
+{"strategy": "retry|rollback|partial_retry|change_context|change_model"}
+
+Return ONLY the JSON, no other text.
+`;
+
+      const response = await callLLM(
+        {
+          role: "recovery_strategist",
+          systemPrompt: "Decide recovery strategy based on diagnosis and failure history.",
+          userPrompt,
+          temperature: 0.5,
+          maxTokens: 200,
+        },
+        state.config
+      );
+
+      const result = JSON.parse(response.content);
+      const strategy: Strategy = result.strategy || "retry";
+
+      return { strategy, recoveryIteration: nextIteration };
+    } catch (err) {
+      // Fallback a heurística si LLM falla
+      console.error("LLM strategy decision failed:", err);
+    }
+  }
+
+  // Modo determinístico o fallback: usar heurística
   const strategy: Strategy =
     diagnosis!.confidence === "high" && patchAttempts.length >= 2 ? "rollback" : "retry";
 

@@ -40,60 +40,60 @@ test("routeStrategy: rollback and abort route directly, everything else routes t
   assert.equal(routeStrategy(baseState({ strategy: "change_model" })), "fix");
 });
 
-test("decideStrategyNode: hard rule 1 - aborts once recovery iterations are exhausted, regardless of diagnosis", () => {
-  const result = decideStrategyNode(
+test("decideStrategyNode: hard rule 1 - aborts once recovery iterations are exhausted, regardless of diagnosis", async () => {
+  const result = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Tests" }), recoveryIteration: 3, maxRecoveryIterations: 3 })
   );
   assert.equal(result.strategy, "abort");
 });
 
-test("decideStrategyNode: hard rule 2 - Security always aborts, even with budget left and not repeated", () => {
-  const result = decideStrategyNode(
+test("decideStrategyNode: hard rule 2 - Security always aborts, even with budget left and not repeated", async () => {
+  const result = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Security", isRepeatedFailure: false }), recoveryIteration: 0 })
   );
   assert.equal(result.strategy, "abort");
 });
 
-test("decideStrategyNode: hard rule 2b - MergeConflict always aborts, even with budget left and not repeated", () => {
-  const result = decideStrategyNode(
+test("decideStrategyNode: hard rule 2b - MergeConflict always aborts, even with budget left and not repeated", async () => {
+  const result = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "MergeConflict", isRepeatedFailure: false }), recoveryIteration: 0 })
   );
   assert.equal(result.strategy, "abort");
 });
 
-test("decideStrategyNode: hard rule 3 - repeated Architecture/Dependencies failure forces change_context", () => {
-  const arch = decideStrategyNode(
+test("decideStrategyNode: hard rule 3 - repeated Architecture/Dependencies failure forces change_context", async () => {
+  const arch = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Architecture", isRepeatedFailure: true }) })
   );
   assert.equal(arch.strategy, "change_context");
 
-  const deps = decideStrategyNode(
+  const deps = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Dependencies", isRepeatedFailure: true }) })
   );
   assert.equal(deps.strategy, "change_context");
 });
 
-test("decideStrategyNode: hard rule 3 - repeated non-Architecture/Dependencies failure forces change_model", () => {
-  const result = decideStrategyNode(
+test("decideStrategyNode: hard rule 3 - repeated non-Architecture/Dependencies failure forces change_model", async () => {
+  const result = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Tests", isRepeatedFailure: true }) })
   );
   assert.equal(result.strategy, "change_model");
 });
 
-test("decideStrategyNode: first-time low-confidence failure retries", () => {
-  const result = decideStrategyNode(
+test("decideStrategyNode: first-time low-confidence failure retries", async () => {
+  const result = await decideStrategyNode(
     baseState({ diagnosis: diagnosis({ rootCause: "Tests", confidence: "low", isRepeatedFailure: false }) })
   );
   assert.equal(result.strategy, "retry");
 });
 
-test("decideStrategyNode: first-time high-confidence failure with multiple prior patch attempts rolls back", () => {
+test("decideStrategyNode: first-time high-confidence failure with multiple prior patch attempts rolls back", async () => {
   const attempt = {
     iteration: 1,
     patch: { taskId: "t", hunks: [], rationale: "r" },
     quickCheckResult: { passed: false, signal: "compile" as const, detail: "x" },
   };
-  const result = decideStrategyNode(
+  const result = await decideStrategyNode(
     baseState({
       diagnosis: diagnosis({ rootCause: "Tests", confidence: "high", isRepeatedFailure: false }),
       patchAttempts: [attempt, attempt],
@@ -102,8 +102,8 @@ test("decideStrategyNode: first-time high-confidence failure with multiple prior
   assert.equal(result.strategy, "rollback");
 });
 
-test("decideStrategyNode: increments recoveryIteration every call", () => {
-  const result = decideStrategyNode(baseState({ diagnosis: diagnosis(), recoveryIteration: 1 }));
+test("decideStrategyNode: increments recoveryIteration every call", async () => {
+  const result = await decideStrategyNode(baseState({ diagnosis: diagnosis(), recoveryIteration: 1 }));
   assert.equal(result.recoveryIteration, 2);
 });
 
