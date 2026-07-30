@@ -1,3 +1,4 @@
+import { callLLM, HARNESS_MODE } from "../../../services/llm.js";
 import { extractForbiddenPatterns, matchesForbiddenPattern } from "../../../config/forbiddenZones.js";
 import { buildContextBlock } from "../../../config/loadContext.js";
 import type { RecoveryStateType } from "../state.js";
@@ -56,23 +57,68 @@ function reclassify(failureCategory: FailureCategory, evidence: string[]): RootC
   return mentionsForbiddenPath ? "Architecture" : base;
 }
 
-export function diagnoseNode(state: RecoveryStateType): { diagnosis: Diagnosis } {
+export async function diagnoseNode(state: RecoveryStateType): Promise<{ diagnosis: Diagnosis }> {
+  // Modo LLM: pedir a Claude que analice la causa raíz
+  if (HARNESS_MODE === "llm" && state.config) {
+    try {
+      const evidenceBlock = state.validationEvidence.map((r) => `[${r.stage}] ${r.passed ? "✓" : "✗"}: ${r.evidence}`).join("\n");
+
+      const userPrompt = `
+Analyze this failure and determine the root cause.
+
+Failure evidence:
+${evidenceBlock || "(sin evidencia)"}
+
+${state.mergeConflict ? `Merge conflict: ${state.mergeConflict.files.join(", ")}` : ""}
+${state.qualityGateIssues.length > 0 ? `Quality Gate issues: ${state.qualityGateIssues.map((i) => i.dimension).join(", ")}` : ""}
+
+Return a JSON object with:
+{
+  "rootCause": "Compilation|Tests|Architecture|Security|Runtime|Formatting|MergeConflict",
+  "detail": "brief description of root cause (max 300 chars)",
+  "confidence": "high|medium|low"
+}
+
+Return ONLY the JSON, no other text.
+`;
+
+      const response = await callLLM(
+        {
+          role: "recovery_diagnostician",
+          systemPrompt: buildContextBlock("rules", state.targetPath),
+          userPrompt,
+          temperature: 0.3,
+          maxTokens: 500,
+        },
+        state.config
+      );
+
+      const result = JSON.parse(response.content);
+      const rootCause = (result.rootCause || "Tests") as RootCauseCategory;
+      const detail = (result.detail || "").slice(0, 300);
+      const confidence = (result.confidence || "medium") as Diagnosis["confidence"];
+
+      const isRepeatedFailure = state.recoveryHistory.some(
+        (h) => h.diagnosis.rootCause === rootCause && h.diagnosis.detail === detail
+      );
+
+      return { diagnosis: { rootCause, detail, confidence, isRepeatedFailure } };
+    } catch (err) {
+      // Fallback a heurística si LLM falla
+      console.error("LLM diagnosis failed:", err);
+    }
+  }
+
+  // Modo determinístico o fallback: usar heurística
   let rootCause: RootCauseCategory;
   let detail: string;
   let confidence: Diagnosis["confidence"];
 
   if (state.mergeConflict) {
-    // Capa 8: llegó hasta acá con compile/tests/quality gate ya en verde —
-    // el problema es que el árbol real divergió del snapshot del sandbox al
-    // momento de promover. Chequeada primero: es independiente de
-    // failureCategory/qualityGateIssues (ambos vendrían null/vacíos en este
-    // camino de todos modos, ya que Merge Manager solo corre después de que
-    // los dos pasaron).
     rootCause = "MergeConflict";
     detail = `Conflicto de merge en: ${state.mergeConflict.files.join(", ")}`.slice(0, 300);
     confidence = "high";
   } else if (state.failureCategory) {
-    // Camino normal: compile/tests/lint/etc. falló en la Capa 5.
     const evidenceTexts = state.validationEvidence.map((r) => r.evidence);
     rootCause = reclassify(state.failureCategory, evidenceTexts);
     const failedStage = state.validationEvidence.find((r) => !r.passed);
@@ -81,9 +127,6 @@ export function diagnoseNode(state: RecoveryStateType): { diagnosis: Diagnosis }
       : `${state.failureCategory}: sin evidencia detallada disponible`;
     confidence = failedStage ? "high" : "low";
   } else if (state.qualityGateIssues.length > 0) {
-    // compile/tests ya pasaron (failureCategory null) — el Quality Gate
-    // (Capa 7) es quien encontró el problema; se usa el primer issue
-    // blocking (o el primero a secas si por algún motivo ninguno lo es).
     const blocking = state.qualityGateIssues.find((i) => i.severity === "blocking") ?? state.qualityGateIssues[0];
     rootCause = QUALITY_GATE_ROOT_CAUSE[blocking.dimension];
     detail = `${blocking.dimension}: ${blocking.evidence.split("\n")[0]}`.slice(0, 300);

@@ -1,3 +1,5 @@
+import { callLLM, HARNESS_MODE } from "../../../services/llm.js";
+import { buildContextBlock } from "../../../config/loadContext.js";
 import { loadPlannerConfig } from "../../../config/loadPlannerConfig.js";
 import type { PlannerStateType } from "../state.js";
 import type { DiscoveryResult } from "../types.js";
@@ -10,12 +12,77 @@ const DESTRUCTIVE_CHANGE_PATTERN = /elimina|borra|remov|delet/i;
 // que ya incluye .harness/rules + ADRs como items source:"rule"/"adr") — no
 // hace una llamada aparte a buildContextBlock("architecture") como el
 // snippet original, para no releer lo que la evidencia ya trae.
-export function discoveryNode(state: PlannerStateType) {
+export async function discoveryNode(state: PlannerStateType) {
   const config = loadPlannerConfig();
   const ticket = state.ticket;
-  const text = `${ticket?.title ?? ""} ${ticket?.description ?? ""}`;
+  if (!ticket) {
+    return {
+      discovery: { problems: [], dependencies: [], risks: [] },
+      maxPlanningIterations: config.planning.maxIterations,
+      discoveryGapThreshold: config.planning.discoveryGapThreshold,
+    };
+  }
 
-  const problems = [ticket?.title ?? "Ticket sin título"];
+  // Modo LLM: pedir a Claude que analice el ticket y evidencia
+  if (HARNESS_MODE === "llm" && state.config) {
+    try {
+      const evidenceBlock = state.evidence
+        .map((e) => `[${e.source}] ${e.id}: ${e.relevanceNote}\n${e.content}`)
+        .join("\n\n---\n\n");
+
+      const userPrompt = `
+Ticket: ${ticket.title}
+Description: ${ticket.description}
+
+Evidence from Knowledge Engine:
+${evidenceBlock || "(sin evidencia)"}
+
+Analyze this ticket and evidence. Return a JSON object with:
+{
+  "problems": ["main problem statement"],
+  "dependencies": ["file1.ts", "file2.ts", ...],
+  "risks": [
+    {"description": "risk description", "severity": "high|medium|low"},
+    ...
+  ]
+}
+
+Return ONLY the JSON, no other text.
+`;
+
+      const response = await callLLM(
+        {
+          role: "discovery",
+          systemPrompt: buildContextBlock("architecture", state.targetPath),
+          userPrompt,
+          temperature: 0.7,
+          maxTokens: 1500,
+        },
+        state.config
+      );
+
+      const result = JSON.parse(response.content);
+      const discovery: DiscoveryResult = {
+        problems: result.problems || [ticket.title],
+        dependencies: result.dependencies || [],
+        risks: result.risks || [],
+      };
+
+      return {
+        discovery,
+        maxPlanningIterations: config.planning.maxIterations,
+        discoveryGapThreshold: config.planning.discoveryGapThreshold,
+      };
+    } catch (err) {
+      // Fallback a heurística si LLM falla
+      console.error("LLM discovery failed:", err);
+    }
+  }
+
+  // Modo determinístico o fallback: usar heurística
+  const text = `${ticket.title} ${ticket.description}`;
+
+  const problems = [ticket.title];
 
   const dependencies = [
     ...new Set(
@@ -39,10 +106,6 @@ export function discoveryNode(state: PlannerStateType) {
     });
   }
 
-  // Si venimos de un revisit_discovery, atender puntualmente los gaps
-  // señalados por Validation en la vuelta anterior — esto es lo que
-  // garantiza que el mismo gap no se vuelva a marcar "discovery-completeness"
-  // en la siguiente pasada de Validation (convergencia, no fijación).
   const previousGaps = state.validationIssues.filter((i) => i.rootCause === "discovery_gap");
   for (const gap of previousGaps) {
     risks.push({ description: `Gap de entendimiento corregido: ${gap.detail}`, severity: "medium" });

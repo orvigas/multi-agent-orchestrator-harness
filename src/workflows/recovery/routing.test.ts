@@ -9,6 +9,7 @@ import type { Diagnosis } from "./types.js";
 function baseState(overrides: Partial<RecoveryStateType> = {}): RecoveryStateType {
   return {
     targetPath: process.cwd(),
+    config: null,
     failureCategory: "Tests",
     validationEvidence: [],
     patchAttempts: [],
@@ -106,31 +107,31 @@ test("decideStrategyNode: increments recoveryIteration every call", () => {
   assert.equal(result.recoveryIteration, 2);
 });
 
-test("diagnoseNode: maps failureCategory to its base rootCause", () => {
-  assert.equal(diagnoseNode(baseState({ failureCategory: "Tests", validationEvidence: [] })).diagnosis.rootCause, "Tests");
+test("diagnoseNode: maps failureCategory to its base rootCause", async () => {
+  assert.equal((await diagnoseNode(baseState({ failureCategory: "Tests", validationEvidence: [] }))).diagnosis.rootCause, "Tests");
   assert.equal(
-    diagnoseNode(baseState({ failureCategory: "Formatting", validationEvidence: [] })).diagnosis.rootCause,
+    (await diagnoseNode(baseState({ failureCategory: "Formatting", validationEvidence: [] }))).diagnosis.rootCause,
     "Formatting"
   );
   assert.equal(
-    diagnoseNode(baseState({ failureCategory: "Security", validationEvidence: [] })).diagnosis.rootCause,
+    (await diagnoseNode(baseState({ failureCategory: "Security", validationEvidence: [] }))).diagnosis.rootCause,
     "Security"
   );
 });
 
-test("diagnoseNode: maps StaticAnalysis to Architecture and Performance to Runtime", () => {
+test("diagnoseNode: maps StaticAnalysis to Architecture and Performance to Runtime", async () => {
   assert.equal(
-    diagnoseNode(baseState({ failureCategory: "StaticAnalysis", validationEvidence: [] })).diagnosis.rootCause,
+    (await diagnoseNode(baseState({ failureCategory: "StaticAnalysis", validationEvidence: [] }))).diagnosis.rootCause,
     "Architecture"
   );
   assert.equal(
-    diagnoseNode(baseState({ failureCategory: "Performance", validationEvidence: [] })).diagnosis.rootCause,
+    (await diagnoseNode(baseState({ failureCategory: "Performance", validationEvidence: [] }))).diagnosis.rootCause,
     "Runtime"
   );
 });
 
-test("diagnoseNode: reclassifies a Compilation failure as Architecture when evidence mentions a real forbidden-zone path", () => {
-  const result = diagnoseNode(
+test("diagnoseNode: reclassifies a Compilation failure as Architecture when evidence mentions a real forbidden-zone path", async () => {
+  const result = await diagnoseNode(
     baseState({
       failureCategory: "Compilation",
       validationEvidence: [
@@ -147,8 +148,8 @@ test("diagnoseNode: reclassifies a Compilation failure as Architecture when evid
   assert.equal(result.diagnosis.rootCause, "Architecture");
 });
 
-test("diagnoseNode: an ordinary Compilation failure with no forbidden-zone mention stays Compilation", () => {
-  const result = diagnoseNode(
+test("diagnoseNode: an ordinary Compilation failure with no forbidden-zone mention stays Compilation", async () => {
+  const result = await diagnoseNode(
     baseState({
       failureCategory: "Compilation",
       validationEvidence: [
@@ -159,14 +160,14 @@ test("diagnoseNode: an ordinary Compilation failure with no forbidden-zone menti
   assert.equal(result.diagnosis.rootCause, "Compilation");
 });
 
-test("diagnoseNode: detects isRepeatedFailure against recoveryHistory", () => {
+test("diagnoseNode: detects isRepeatedFailure against recoveryHistory", async () => {
   const evidence = [
     { stage: "tests" as const, passed: false, durationMs: 1, exitCode: 1, evidence: "AssertionError: boom" },
   ];
-  const first = diagnoseNode(baseState({ failureCategory: "Tests", validationEvidence: evidence }));
+  const first = await diagnoseNode(baseState({ failureCategory: "Tests", validationEvidence: evidence }));
   assert.equal(first.diagnosis.isRepeatedFailure, false);
 
-  const second = diagnoseNode(
+  const second = await diagnoseNode(
     baseState({
       failureCategory: "Tests",
       validationEvidence: evidence,
@@ -176,8 +177,8 @@ test("diagnoseNode: detects isRepeatedFailure against recoveryHistory", () => {
   assert.equal(second.diagnosis.isRepeatedFailure, true);
 });
 
-test("diagnoseNode: falls back to qualityGateIssues when failureCategory is null (Capa 5 already passed)", () => {
-  const result = diagnoseNode(
+test("diagnoseNode: falls back to qualityGateIssues when failureCategory is null (Capa 5 already passed)", async () => {
+  const result = await diagnoseNode(
     baseState({
       failureCategory: null,
       validationEvidence: [],
@@ -190,8 +191,8 @@ test("diagnoseNode: falls back to qualityGateIssues when failureCategory is null
   assert.equal(result.diagnosis.confidence, "high");
 });
 
-test("diagnoseNode: prefers a blocking qualityGateIssue over a non-blocking one", () => {
-  const result = diagnoseNode(
+test("diagnoseNode: prefers a blocking qualityGateIssue over a non-blocking one", async () => {
+  const result = await diagnoseNode(
     baseState({
       failureCategory: null,
       qualityGateIssues: [
@@ -203,8 +204,8 @@ test("diagnoseNode: prefers a blocking qualityGateIssue over a non-blocking one"
   assert.equal(result.diagnosis.rootCause, "Tests");
 });
 
-test("diagnoseNode: mergeConflict (Capa 8) takes priority over failureCategory/qualityGateIssues", () => {
-  const result = diagnoseNode(
+test("diagnoseNode: mergeConflict (Capa 8) takes priority over failureCategory/qualityGateIssues", async () => {
+  const result = await diagnoseNode(
     baseState({
       failureCategory: null,
       qualityGateIssues: [],

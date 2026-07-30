@@ -5,6 +5,7 @@ import type { PlanTask } from "../planner/types.js";
 import type { Issue } from "../quality-gate/types.js";
 import type { ConflictReport } from "../merge-manager/types.js";
 import type { Diagnosis, Strategy, RecoveryEntry } from "./types.js";
+import type { OrchestratorConfig } from "../../config/loadConfig.js";
 
 export const RecoveryState = Annotation.Root({
   // Target repo path (heredado del Orchestrator)
@@ -12,6 +13,9 @@ export const RecoveryState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => process.cwd(),
   }),
+
+  // Config cargada en boot (heredada del Orchestrator)
+  config: Annotation<OrchestratorConfig | null>({ reducer: (_, n) => n, default: () => null }),
 
   // Entrada: lo que ya sabemos de capas anteriores
   failureCategory: Annotation<FailureCategory | null>({ reducer: (_, n) => n, default: () => null }),

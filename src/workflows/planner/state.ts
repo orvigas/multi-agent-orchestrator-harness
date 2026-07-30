@@ -2,6 +2,7 @@ import { Annotation } from "@langchain/langgraph";
 import type { Ticket } from "../../orchestrator/types.js";
 import type { EvidenceItem } from "../knowledge-engine/types.js";
 import type { DiscoveryResult, Plan, PlanRevision, ValidationIssue } from "./types.js";
+import type { OrchestratorConfig } from "../../config/loadConfig.js";
 
 export const PlannerState = Annotation.Root({
   // Target repo path (heredado del Orchestrator)
@@ -9,6 +10,9 @@ export const PlannerState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => process.cwd(),
   }),
+
+  // Config cargada en boot (heredada del Orchestrator)
+  config: Annotation<OrchestratorConfig | null>({ reducer: (_, n) => n, default: () => null }),
 
   ticket: Annotation<Ticket | null>({ reducer: (_, n) => n, default: () => null }),
   evidence: Annotation<EvidenceItem[]>({ reducer: (_, n) => n, default: () => [] }), // viene del Knowledge Engine
