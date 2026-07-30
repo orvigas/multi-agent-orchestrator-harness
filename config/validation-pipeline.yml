@@ -1,0 +1,27 @@
+# Vive en la raíz del repo destino (o en projects/<nombre>/.harness/) en el
+# diseño original; aquí vive en config/ junto a los demás *.yml del harness.
+# Cambiar de stack es editar este archivo, nunca el grafo ni el código.
+validation:
+  compileCommand: "npx tsc --noEmit"
+  testCommand: "npm test"
+  lintCommand: "npx eslint ."
+  # Segunda pasada de tsc con flags más estrictos que compileCommand — señal
+  # de "static analysis" real y distinta, sin sumar un scanner externo.
+  staticAnalysisCommand: "npx tsc --noEmit --noUnusedLocals --noUnusedParameters --noImplicitReturns --noFallthroughCasesInSwitch"
+  # npm audit: usa la base de datos de vulnerabilidades real de npm, sin
+  # dependencias nuevas. --audit-level=critical (no "high"): este proyecto
+  # ya tiene hallazgos reales high/moderate en dependencias transitivas del
+  # ecosistema LangChain/eslint, y gatear solo en "critical" es una práctica
+  # estándar (evita bloquear por ruido de advisories transitivos menores) —
+  # sube esto a "high" si el repo destino lo amerita.
+  securityCommand: "npm audit --audit-level=critical"
+  performance:
+    enabled: false # se activa por task (task.riskLevel), no globalmente — ver §6
+    command: "echo 'performance check no configurado para este proyecto'"
+  timeouts:
+    compileMs: 120000
+    testsMs: 300000
+    lintMs: 60000
+    staticAnalysisMs: 180000
+    securityMs: 60000
+    performanceMs: 600000
