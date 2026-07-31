@@ -64,22 +64,31 @@ export async function diagnoseNode(state: RecoveryStateType): Promise<{ diagnosi
       const evidenceBlock = state.validationEvidence.map((r) => `[${r.stage}] ${r.passed ? "✓" : "✗"}: ${r.evidence}`).join("\n");
 
       const userPrompt = `
-Analyze this failure and determine the root cause.
+You are a root cause analysis expert. Analyze the failure evidence and determine the ACTUAL root cause.
 
-Failure evidence:
+Failure evidence from validation:
 ${evidenceBlock || "(sin evidencia)"}
 
-${state.mergeConflict ? `Merge conflict: ${state.mergeConflict.files.join(", ")}` : ""}
+${state.mergeConflict ? `Merge conflict detected in: ${state.mergeConflict.files.join(", ")}` : ""}
 ${state.qualityGateIssues.length > 0 ? `Quality Gate issues: ${state.qualityGateIssues.map((i) => i.dimension).join(", ")}` : ""}
 
-Return a JSON object with:
+DECISION TREE - Choose the FIRST matching category:
+1. MergeConflict: if evidence mentions merge conflicts or branch conflicts
+2. Security: if evidence mentions security warnings, vulnerabilities, or unsafe operations
+3. Compilation: if evidence mentions TypeScript errors, syntax errors, or import failures
+4. Tests: if evidence mentions test failures, assertion errors, or test timeouts
+5. Architecture: if evidence mentions forbidden patterns, architecture rules, or layer violations
+6. Formatting: if evidence mentions formatting issues, linting errors, or style violations
+7. Runtime: if evidence mentions runtime errors, performance issues, or memory problems
+
+Return a JSON diagnosis:
 {
   "rootCause": "Compilation|Tests|Architecture|Security|Runtime|Formatting|MergeConflict",
-  "detail": "brief description of root cause (max 300 chars)",
+  "detail": "concise description of the root cause (max 300 chars)",
   "confidence": "high|medium|low"
 }
 
-Return ONLY the JSON, no other text.
+Return ONLY valid JSON, no markdown.
 `;
 
       const response = await callLLM(

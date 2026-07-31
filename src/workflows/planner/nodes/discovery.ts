@@ -37,17 +37,25 @@ Description: ${ticket.description}
 Evidence from Knowledge Engine:
 ${evidenceBlock || "(sin evidencia)"}
 
-Analyze this ticket and evidence. Return a JSON object with:
+You are an expert code analyst. Analyze this ticket and evidence to identify:
+1. Main problems this ticket aims to solve
+2. Files that MUST be modified (absolute paths from repo root)
+3. Risks or concerns
+
+CRITICAL REQUIREMENTS:
+- dependencies: MUST be absolute file paths (e.g., "src/services/Auth.ts", NOT "Auth" or "Auth.ts")
+- risks: severity MUST be exactly "high", "medium", or "low"
+- problems: focus on THE PROBLEM, not the solution
+- Return ONLY valid JSON, no markdown or extra text
+
+Return this JSON structure:
 {
-  "problems": ["main problem statement"],
-  "dependencies": ["file1.ts", "file2.ts", ...],
+  "problems": ["problem statement 1", "problem statement 2"],
+  "dependencies": ["src/path/to/file1.ts", "src/path/to/file2.ts"],
   "risks": [
-    {"description": "risk description", "severity": "high|medium|low"},
-    ...
+    {"description": "what could go wrong", "severity": "high|medium|low"}
   ]
 }
-
-Return ONLY the JSON, no other text.
 `;
 
       const response = await callLLM(

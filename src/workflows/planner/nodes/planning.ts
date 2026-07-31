@@ -39,21 +39,23 @@ ${risks.map((r) => `- [${r.severity}] ${r.description}`).join("\n")}
 
 ${rejectedContext}
 
-Generate a JSON plan with:
+Generate a detailed execution plan. CRITICAL REQUIREMENTS:
+- Each task MUST have a unique id (use "task-1", "task-2", etc.)
+- touchesFiles MUST be absolute paths (e.g., "src/services/Auth.ts")
+- order MUST list EVERY task id, in execution sequence (no duplicates, no missing ids)
+- riskLevel MUST be exactly "high", "medium", or "low"
+- Respect previous rejections: do NOT repeat forbidden zones
+
+Example valid plan:
 {
   "tasks": [
-    {
-      "id": "task-N",
-      "description": "what to do",
-      "touchesFiles": ["file1.ts", "file2.ts"],
-      "language": "typed",
-      "riskLevel": "high|medium|low"
-    }
+    {"id": "task-1", "description": "Update Auth.ts validate method", "touchesFiles": ["src/services/Auth.ts"], "language": "typed", "riskLevel": "medium"},
+    {"id": "task-2", "description": "Add unit tests for validate", "touchesFiles": ["src/services/Auth.test.ts"], "language": "typed", "riskLevel": "low"}
   ],
-  "order": ["task-1", "task-2", ...]
+  "order": ["task-1", "task-2"]
 }
 
-Return ONLY the JSON, no other text.
+Return ONLY valid JSON, no markdown or explanation.
 `;
 
       const response = await callLLM(

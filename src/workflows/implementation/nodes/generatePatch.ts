@@ -106,24 +106,33 @@ ${Object.entries(fileContents)
 
 ${feedback ? `\nPrevious attempt failed: ${feedback}\nPlease fix the issue.` : ""}
 
-Generate a JSON patch with this structure:
+Generate a context-based JSON patch. CRITICAL REQUIREMENTS:
+
+1. contextBefore & contextAfter: MUST each have 2-3 REAL lines from the file (exact content)
+   - These lines will be used to LOCATE where to apply the change
+   - MUST be non-empty, verbatim from the file, must include indentation
+
+2. oldLines: exact content to replace (1+ lines)
+
+3. newLines: replacement content (1+ lines)
+
+4. All lines MUST be strings in arrays (no single strings)
+
+Example:
 {
   "hunks": [
     {
-      "file": "path/to/file",
-      "contextBefore": ["line that comes before the change"],
-      "oldLines": ["line to replace"],
-      "newLines": ["replacement line"],
-      "contextAfter": ["line that comes after the change"]
+      "file": "src/services/Auth.ts",
+      "contextBefore": ["class Auth {", "  validate(email: string): boolean {"],
+      "oldLines": ["    return email.includes('@');"],
+      "newLines": ["    const pattern = /^[^@]+@[^@]+\\.[^@]+$/;", "    return pattern.test(email);"],
+      "contextAfter": ["  }", "}"]
     }
   ],
-  "rationale": "Brief explanation of why this patch solves the task"
+  "rationale": "Improved email validation using regex pattern"
 }
 
-IMPORTANT:
-- contextBefore and contextAfter MUST be non-empty (provide actual lines from file)
-- oldLines and newLines are the actual content to change
-- Return ONLY the JSON, no other text
+Return ONLY valid JSON, no markdown.
 `;
 
       const response = await callLLM(
