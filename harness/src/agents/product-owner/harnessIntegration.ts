@@ -33,51 +33,45 @@ export class HarnessIntegration {
     return this.db.moveTicket(ticketId, 'in-progress');
   }
 
+  private reportExecution(ticketId: string, status: 'success' | 'failure' | 'blocked',
+                          dbStatus: string, reason?: string): HarnessExecutionResult {
+    const startTime = Date.now();
+    this.db.moveTicket(ticketId, dbStatus as any, reason);
+
+    const result: HarnessExecutionResult = {
+      ticketId,
+      status,
+      executionTime: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (reason) {
+      if (status === 'failure') result.failureReason = reason;
+      if (status === 'blocked') result.blockedReason = reason;
+    }
+
+    return result;
+  }
+
   /**
    * Report successful execution
    */
   reportSuccess(ticketId: string): HarnessExecutionResult {
-    const startTime = Date.now();
-    const success = this.db.moveTicket(ticketId, 'done');
-
-    return {
-      ticketId,
-      status: 'success',
-      executionTime: Date.now() - startTime,
-      timestamp: new Date().toISOString(),
-    };
+    return this.reportExecution(ticketId, 'success', 'done');
   }
 
   /**
    * Report failed execution
    */
   reportFailure(ticketId: string, reason: string): HarnessExecutionResult {
-    const startTime = Date.now();
-    const success = this.db.moveTicket(ticketId, 'failed', reason);
-
-    return {
-      ticketId,
-      status: 'failure',
-      failureReason: reason,
-      executionTime: Date.now() - startTime,
-      timestamp: new Date().toISOString(),
-    };
+    return this.reportExecution(ticketId, 'failure', 'failed', reason);
   }
 
   /**
    * Report blocked execution (dependency issue)
    */
   reportBlocked(ticketId: string, reason: string): HarnessExecutionResult {
-    const startTime = Date.now();
-    const success = this.db.moveTicket(ticketId, 'blocked', reason);
-
-    return {
-      ticketId,
-      status: 'blocked',
-      blockedReason: reason,
-      executionTime: Date.now() - startTime,
-      timestamp: new Date().toISOString(),
-    };
+    return this.reportExecution(ticketId, 'blocked', 'blocked', reason);
   }
 
   /**
@@ -154,8 +148,9 @@ export class HarnessIntegration {
    * Export execution log
    */
   exportExecutionLog(format: 'json' | 'csv' = 'json') {
-    const allTickets = this.db.getAllTickets();
-    const completed = allTickets.filter((t) => t.status === 'done' || t.status === 'failed');
+    const done = this.db.getTicketsByStatus('done');
+    const failed = this.db.getTicketsByStatus('failed');
+    const completed = [...done, ...failed];
 
     if (format === 'json') {
       return JSON.stringify(completed, null, 2);
