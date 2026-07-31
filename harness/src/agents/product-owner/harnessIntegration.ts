@@ -12,6 +12,8 @@ export interface HarnessExecutionResult {
 
 export class HarnessIntegration {
   private db: TicketDatabase;
+  private static readonly PRIORITY_ORDER = { critical: 0, high: 1, normal: 2, low: 3 };
+  private static readonly SIZE_ORDER = { small: 0, medium: 1, large: 2, xlarge: 3 };
 
   constructor() {
     this.db = new TicketDatabase();
@@ -104,14 +106,12 @@ export class HarnessIntegration {
     // Prioritize by: priority -> size -> complexity
     return backlogTickets
       .sort((a, b) => {
-        const priorityOrder = { critical: 0, high: 1, normal: 2, low: 3 };
-        const priorityDiff = priorityOrder[a.priority as keyof typeof priorityOrder] -
-                            priorityOrder[b.priority as keyof typeof priorityOrder];
+        const priorityDiff = HarnessIntegration.PRIORITY_ORDER[a.priority as keyof typeof HarnessIntegration.PRIORITY_ORDER] -
+                            HarnessIntegration.PRIORITY_ORDER[b.priority as keyof typeof HarnessIntegration.PRIORITY_ORDER];
         if (priorityDiff !== 0) return priorityDiff;
 
-        const sizeOrder = { small: 0, medium: 1, large: 2, xlarge: 3 };
-        const sizeDiff = sizeOrder[a.size as keyof typeof sizeOrder] -
-                        sizeOrder[b.size as keyof typeof sizeOrder];
+        const sizeDiff = HarnessIntegration.SIZE_ORDER[a.size as keyof typeof HarnessIntegration.SIZE_ORDER] -
+                        HarnessIntegration.SIZE_ORDER[b.size as keyof typeof HarnessIntegration.SIZE_ORDER];
         if (sizeDiff !== 0) return sizeDiff;
 
         return a.complexity - b.complexity;
@@ -120,42 +120,34 @@ export class HarnessIntegration {
   }
 
   /**
-   * Check if ticket has dependencies met
+   * Get unmet dependencies for a ticket
    */
-  areDependenciesMet(ticketId: string): boolean {
+  private getUnmetDependencies(ticketId: string): string[] {
     const ticket = this.db.getTicket(ticketId);
-    if (!ticket) return false;
+    if (!ticket || ticket.dependencies.length === 0) return [];
 
-    // If no dependencies, they're met
-    if (ticket.dependencies.length === 0) return true;
-
-    // Check if all dependencies are done
+    const unmet: string[] = [];
     for (const depId of ticket.dependencies) {
       const depTicket = this.db.getTicket(depId);
       if (!depTicket || depTicket.status !== 'done') {
-        return false;
+        unmet.push(depId);
       }
     }
+    return unmet;
+  }
 
-    return true;
+  /**
+   * Check if ticket has dependencies met
+   */
+  areDependenciesMet(ticketId: string): boolean {
+    return this.getUnmetDependencies(ticketId).length === 0;
   }
 
   /**
    * Get blocking tickets
    */
   getBlockingTickets(ticketId: string): string[] {
-    const ticket = this.db.getTicket(ticketId);
-    if (!ticket || ticket.dependencies.length === 0) return [];
-
-    const blocking: string[] = [];
-    for (const depId of ticket.dependencies) {
-      const depTicket = this.db.getTicket(depId);
-      if (depTicket && depTicket.status !== 'done') {
-        blocking.push(depId);
-      }
-    }
-
-    return blocking;
+    return this.getUnmetDependencies(ticketId);
   }
 
   /**

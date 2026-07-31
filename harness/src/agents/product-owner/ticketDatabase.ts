@@ -6,11 +6,28 @@ const DB_PATH = path.join(process.cwd(), 'harness/tickets/tickets.db');
 
 export class TicketDatabase {
   private db: Database.Database;
+  private saveStmt: Database.Statement;
+  private getStmt: Database.Statement;
+  private getAllStmt: Database.Statement;
 
   constructor() {
     this.db = new Database(DB_PATH);
     this.db.pragma('journal_mode = WAL');
     this.initializeSchema();
+    this.prepareStatements();
+  }
+
+  private prepareStatements(): void {
+    this.saveStmt = this.db.prepare(`
+      INSERT OR REPLACE INTO tickets (
+        id, type, status, title, description, requirements, acceptance_criteria,
+        size, priority, complexity, story_points, estimated_days, parent_epic,
+        subtasks, dependencies, blocked_by, rejection_reason, failure_reason, tags,
+        created_at, created_by, started_at, completed_at, assignee, reviewer, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.getStmt = this.db.prepare('SELECT * FROM tickets WHERE id = ?');
+    this.getAllStmt = this.db.prepare('SELECT * FROM tickets ORDER BY created_at DESC');
   }
 
   private initializeSchema(): void {
@@ -52,18 +69,7 @@ export class TicketDatabase {
   }
 
   saveTicket(ticket: Ticket): void {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO tickets (
-        id, type, status, title, description, requirements, acceptance_criteria,
-        size, priority, complexity, story_points, estimated_days, parent_epic,
-        subtasks, dependencies, blocked_by, rejection_reason, failure_reason, tags,
-        created_at, created_by, started_at, completed_at, assignee, reviewer, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-      )
-    `);
-
-    stmt.run(
+    this.saveStmt.run(
       ticket.id,
       ticket.type,
       ticket.status,
@@ -94,46 +100,37 @@ export class TicketDatabase {
   }
 
   getTicket(id: string): Ticket | null {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE id = ?');
-    const row = stmt.get(id) as any;
+    const row = this.getStmt.get(id) as any;
 
     if (!row) return null;
     return this.deserializeTicket(row);
   }
 
-  getTicketsByStatus(status: TicketStatus): Ticket[] {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE status = ? ORDER BY created_at DESC');
-    const rows = stmt.all(status) as any[];
-
+  private queryByField(field: string, value: string, order = 'created_at DESC'): Ticket[] {
+    const stmt = this.db.prepare(`SELECT * FROM tickets WHERE ${field} = ? ORDER BY ${order}`);
+    const rows = stmt.all(value) as any[];
     return rows.map((row) => this.deserializeTicket(row));
   }
 
-  getAllTickets(): Ticket[] {
-    const stmt = this.db.prepare('SELECT * FROM tickets ORDER BY created_at DESC');
-    const rows = stmt.all() as any[];
+  getTicketsByStatus(status: TicketStatus): Ticket[] {
+    return this.queryByField('status', status);
+  }
 
+  getAllTickets(): Ticket[] {
+    const rows = this.getAllStmt.all() as any[];
     return rows.map((row) => this.deserializeTicket(row));
   }
 
   getTicketsByPriority(priority: string): Ticket[] {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE priority = ? ORDER BY created_at DESC');
-    const rows = stmt.all(priority) as any[];
-
-    return rows.map((row) => this.deserializeTicket(row));
+    return this.queryByField('priority', priority);
   }
 
   getTicketsBySize(size: string): Ticket[] {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE size = ? ORDER BY created_at DESC');
-    const rows = stmt.all(size) as any[];
-
-    return rows.map((row) => this.deserializeTicket(row));
+    return this.queryByField('size', size);
   }
 
   getSubtasks(epicId: string): Ticket[] {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE parent_epic = ? ORDER BY created_at');
-    const rows = stmt.all(epicId) as any[];
-
-    return rows.map((row) => this.deserializeTicket(row));
+    return this.queryByField('parent_epic', epicId, 'created_at');
   }
 
   getStats(): {

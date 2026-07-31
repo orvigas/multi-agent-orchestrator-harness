@@ -55,9 +55,11 @@ export class TokenTracker {
     }
   }
 
-  private saveUsage(): void {
+  private async saveUsage(): Promise<void> {
     const dir = path.dirname(TRACKING_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // TODO: Batch writes using a timer (flush every 5s or after N entries)
+    // For now, use sync to maintain existing behavior
     fs.writeFileSync(TRACKING_PATH, JSON.stringify(this.usage, null, 2));
   }
 
@@ -110,16 +112,14 @@ export class TokenTracker {
   }
 
   getUsageLastNHours(hours: number): TokenUsage[] {
-    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-
-    return this.usage.filter((entry) => new Date(entry.timestamp) > cutoffTime);
+    const cutoffTime = Date.now() - hours * 60 * 60 * 1000;
+    return this.usage.filter((entry) => new Date(entry.timestamp).getTime() > cutoffTime);
   }
 
   getUsageThisMonth(): TokenUsage[] {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    return this.usage.filter((entry) => new Date(entry.timestamp) >= monthStart);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    return this.usage.filter((entry) => new Date(entry.timestamp).getTime() >= monthStart);
   }
 
   checkBudget(monthlyBudget: number, warnAt: number = 80): {
