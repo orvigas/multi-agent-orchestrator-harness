@@ -35,7 +35,7 @@ Esto mapea casi 1:1 a los primitivos de LangGraph:
 | Tu diseño | Primitivo de LangGraph |
 |---|---|
 | Backlog, estado, memoria | `StateGraph` + `Annotation` (state schema) |
-| Checkpoints | `checkpointer` (MemorySaver / PostgresSaver) |
+| Checkpoints | `checkpointer` (SqliteSaver default, PostgresSaver en Phase 1.3) |
 | Presupuesto tokens/costo/tiempo | Campos custom en el state + un nodo `budget_guard` |
 | Decidir continuar/reintentar/parar | Conditional edges (`addConditionalEdges`) |
 | Llamar workflows, no agentes | Cada workflow es un **subgrafo** compilado, embebido como nodo del grafo principal |
@@ -98,7 +98,7 @@ export const OrchestratorState = Annotation.Root({
 ```ts
 // src/orchestrator/graph.ts
 import { StateGraph, END } from "@langchain/langgraph";
-import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import { createCheckpointer } from "./persistence/checkpointer";  // SqliteSaver (Phase 1.1)
 import { OrchestratorState } from "./state";
 import { planningWorkflow } from "../workflows/planning.subgraph";
 import { implementationWorkflow } from "../workflows/implementation.subgraph";
@@ -132,7 +132,7 @@ const builder = new StateGraph(OrchestratorState)
   });
 
 export const orchestrator = builder.compile({
-  checkpointer: PostgresSaver.fromConnString(process.env.CHECKPOINT_DB_URL!),
+  checkpointer: createCheckpointer(),  // SqliteSaver (default) or PostgresSaver (Phase 1.3)
 });
 ```
 

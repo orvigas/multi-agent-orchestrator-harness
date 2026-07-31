@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A reusable, stack-agnostic multi-agent harness built with LangGraph.js (TypeScript), implemented layer-by-layer from the how-to specs in `loops_prompts/01` through `07`. Each `loops_prompts/NN-*.md` is the design doc for one layer; they were written as a series and each one references decisions made in earlier ones. They are specs to implement against, not infallible ground truth — several contain real bugs or gaps that were found by actually running the code (see "Known gotchas" below) and fixed in the implementation rather than followed literally.
 
-This project is not a git repository. Don't run git commands expecting them to work; there's no history to diff against.
+This project is a git repository. Git commands (log, diff, add, commit, push) work as expected.
 
 ## Codebase exploration: prefer codegraph
 
@@ -53,7 +53,7 @@ The Orchestrator (`src/orchestrator/graph.ts`) is the top-level LangGraph `State
 4. **Validation Pipeline** (`validation-pipeline/`) — deliberately has **no LLM anywhere**: `compile → tests → (lint ‖ static_analysis ‖ security) → performance`, fail-fast, real subprocesses (`tsc`, `eslint`, `npm test`, `npm audit`) via `tools/exec.ts`.
 5. **Recovery Loop** (`recovery/`) — the one layer where interpretation is allowed: turns Layer 5's objective `failureCategory` into a deeper root-cause diagnosis, applies hard rules (Security always escalates; a repeated failure forces a strategy change, never a blind retry) before falling back to judgment, and produces a narrow `targetedFixTask` that gets substituted back into the plan — never "regenerate everything."
 
-`loops_prompts/07-quality-gate-howto.md` (a review-driven loop that never touches code) is specified but not yet implemented.
+**Quality Gate** (`src/workflows/quality-gate/`) — implemented (Phase 1), checks coverage, architecture, and gates code to merge manager. It's a review-gate (human-checkable metrics), not an LLM layer.
 
 ### The adapter pattern (read this before touching `src/orchestrator/nodes/`)
 

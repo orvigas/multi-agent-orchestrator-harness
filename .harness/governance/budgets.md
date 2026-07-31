@@ -6,14 +6,10 @@ Complementa los límites numéricos de `config/orchestrator.yml`.
   Quality Gate se marca `fail` y pasa a Recovery, nunca se reintenta
   silenciosamente sin registrar la razón en `decisionLog`.
 - Si `budget_guard` detiene el run (`routeAfterBudgetCheck` -> `stop`), el
-  backlog restante queda intacto DENTRO del mismo proceso — pero el
-  checkpointer real de este proyecto es `MemorySaver` (ADR 0001), que vive
-  en memoria y se pierde al terminar el proceso. "Retomable vía
-  checkpointer con el mismo `thread_id`" solo es cierto si el proceso sigue
-  vivo; no hay recuperación real entre invocaciones separadas de
-  `npm run dev`/`harness:execute` hasta que se adopte un checkpointer
-  persistente (ver ADR 0001 y el análisis de gaps frente a
-  IMPLEMENTATION_GUIDE.md §6.7.1 — candidato: `@langchain/langgraph-
-  checkpoint-sqlite`, no Postgres).
+  backlog restante queda intacto DENTRO del mismo proceso y se recupera entre
+  invocaciones de `npm run dev`/`harness:execute` gracias a
+  `SqliteSaver` (Phase 1.1 implementado, 2026-07-30). El checkpointer persiste
+  en `./data/harness-checkpoints.db` (configurable via `CHECKPOINT_DB_PATH`).
+  Migración a PostgreSQL es candidata para Phase 1.3 para deployments multi-proceso.
 - Cambiar el presupuesto de un run en curso (`tokenBudget.limit`,
   `costBudget.limitUsd`) es una acción de categoría "Ask" (ver `approvals.md`).

@@ -209,9 +209,9 @@ npm run harness:logs
 # Ver coste (SIMULADO — ningún LLM real cobra todavía) de los últimos N días
 npm run harness:costs -- --days=1
 
-# harness:checkpoints / harness:rollback: NO implementados todavía — requieren
-# un checkpointer persistente (SQLite/Postgres) en vez de MemorySaver en
-# memoria (ver ADR 0001 y el análisis de gaps, categoría 2).
+# Checkpointer persistente: IMPLEMENTADO (SQLite, Phase 1.1, 2026-07-30)
+# harness:checkpoints / harness:rollback: comandos CLI aún NO implementados
+# (pero la persistencia subyacente de checkpoint sí está disponible)
 
 # Monitoreo en dashboard (opt-in real, cero código — ver .env.example)
 open https://smith.langchain.com  # LangSmith

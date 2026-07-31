@@ -2,27 +2,34 @@
 
 ## Estado
 
-Aceptado.
+**Superseded by Phase 1.1 SQLite Checkpointer (2026-07-30)**
 
-## Contexto
+## Contexto (Histórico)
 
 El how-to original (`01-orchestrator-langgraph-howto.md`, sección 3)
 compila el grafo con `PostgresSaver.fromConnString(process.env.CHECKPOINT_DB_URL!)`.
-Este proyecto no tiene todavía una instancia de Postgres disponible, y el
-propio `npm install` del how-to no incluye el paquete
-`@langchain/langgraph-checkpoint-postgres`.
+Este proyecto no tenía una instancia de Postgres disponible en el momento de esta decisión.
 
-## Decisión
+## Decisión Original
 
-`src/orchestrator/graph.ts` compila el Orchestrator con `MemorySaver`
+`src/orchestrator/graph.ts` compilaba el Orchestrator con `MemorySaver`
 (exportado directamente por `@langchain/langgraph`), que no requiere
 infraestructura externa.
 
-## Consecuencias
+## Consecuencias de la Decisión Original
 
-- `npm run dev` funciona sin levantar ninguna base de datos.
-- Los checkpoints no sobreviven a un reinicio del proceso.
-- Migrar a `PostgresSaver` más adelante es un cambio de una línea en
-  `graph.ts` (instalar el paquete de checkpoint-postgres y pasar
-  `PostgresSaver.fromConnString(process.env.CHECKPOINT_DB_URL!)`), sin
-  tocar el resto del grafo.
+- `npm run dev` funcionaba sin levantar ninguna base de datos.
+- Los checkpoints no sobrevivían a un reinicio del proceso.
+- Fue un punto de escalado identificado en análisis de gaps.
+
+## Supersesión (Phase 1.1)
+
+**Decisión Actualizada (2026-07-30)**: Se implementó `SqliteSaver` como checkpointer persistente por defecto.
+
+- `src/persistence/checkpointer.ts` ahora usa `SqliteSaver.fromConnString()`
+- Checkpoints persisten en `./data/harness-checkpoints.db` (configurable via `CHECKPOINT_DB_PATH`)
+- `npm run dev` funciona sin infraestructura externa (SQLite es file-based)
+- Migración a `PostgresSaver` en Phase 1.3 es cambio de una línea en `checkpointer.ts`
+- Todos los checkpoints entre runs persisten y son recuperables
+
+Véase `PRODUCTION.md` § "Checkpoint Database" para la implementación actual.

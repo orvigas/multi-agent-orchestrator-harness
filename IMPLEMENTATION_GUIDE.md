@@ -789,11 +789,16 @@ Acceptance criteria:
 ```bash
 cd multiagent-harness
 
-# TARGET_REPO separado del harness: NO implementado todavía (el harness hoy
-# solo opera sobre sí mismo — ver categoría 2 del análisis de gaps, es la
-# mayor brecha conceptual frente a esta guía). Por ahora el ticket se
-# procesa contra ESTE repo.
-npx tsx src/index.ts --ticket-id "PROJ-123" --title "Agregar validación de email en RegisterService"
+# TARGET_REPO separado del harness: IMPLEMENTADO (Phase 1, 2026-07-30)
+# Opción A: Procesar el ticket contra TU repo (recomendado para producción)
+npx tsx src/index.ts --target /path/to/tu-repo \
+  --ticket-id "PROJ-123" \
+  --title "Agregar validación de email en RegisterService"
+
+# Opción B: Procesar contra el harness mismo (para testing/demos)
+npx tsx src/index.ts \
+  --ticket-id "PROJ-123" \
+  --title "Agregar validación de email en RegisterService"
 ```
 
 Ahora el harness va a:
@@ -1658,10 +1663,10 @@ npm run quality-gate:demo
 npm run merge-manager:demo
 ```
 
-La Opción B de abajo (clonar un repo de prueba separado, `--target`) NO
-existe todavía — el harness está acoplado a `process.cwd()` en varios
-módulos (sandbox, indexing, quality-gate). Ver categoría 2 del análisis de
-gaps ("desacoplar el repo destino del harness").
+La Opción B (usar un repo de prueba separado con `--target`) está IMPLEMENTADA
+desde Phase 1 (2026-07-30). El harness ahora soporta arbitrary target repositories
+mediante el parámetro `--target /path/to/repo`. Ver `PRODUCTION.md` para detalles
+de deployment con target repos reales.
 
 ---
 
