@@ -500,11 +500,21 @@ LLM patch rejected by safety validation: Hunk 0: contextBefore is empty
 
 ## 🎓 Learning Resources
 
-- **`.claude/CLAUDE.md`** — Technical deep dive for Claude Code developers
-- **`loops_prompts/01-08/*.md`** — Original specifications (design docs)
-- **`.harness/governance/*.md`** — Policy & behavioral contracts per layer
-- **`docs/phase*.md`** — Implementation phase details
-- **`src/**/*.test.ts`** — Runnable examples of each component
+### Getting Started
+- **`harness/SETUP.md`** — Complete setup guide (wizard & manual)
+- **`harness/PRODUCT_OWNER.md`** — Product Owner Agent (ticket creation, LLM config, tests)
+- **`harness/README.md`** — Harness overview & architecture
+
+### Deep Dives
+- **`.claude/CLAUDE.md`** — Technical deep dive for developers
+- **`docs/IMPLEMENTATION_PHASES.md`** — Index of all phases (1-5) with links
+- **`loops_prompts/01-08/*.md`** — Original layer specifications
+- **`.harness/governance/*.md`** — Policy & behavioral contracts
+
+### Reference
+- **`STRUCTURE.md`** — Project structure explanation
+- **`PRODUCTION.md`** — Production deployment guide
+- **`src/**/*.test.ts`** — Runnable examples
 
 ---
 
