@@ -1,0 +1,39 @@
+{
+  "tickets": [
+    {
+      "id": "TASK-003",
+      "type": "feature",
+      "status": "failed",
+      "title": "Google OAuth Implementation - Core Implementation",
+      "description": "Google OAuth Implementation - Core Implementation\n\nFunctionality: Módulo de autenticación\nRestrictions: Debe reutilizar JWT existente",
+      "requirements": [
+        "Users can login with Google",
+        "Users can signup with Google"
+      ],
+      "acceptance_criteria": [
+        "User can: Users can login with Google",
+        "User can: Users can signup with Google",
+        "Google OAuth Implementation - Core Implementation is implemented",
+        "Respects restrictions: Debe reutilizar JWT existente"
+      ],
+      "size": "medium",
+      "priority": "high",
+      "complexity": 3,
+      "story_points": 6,
+      "estimated_days": 3,
+      "parent_epic": "TASK-001",
+      "subtasks": [],
+      "dependencies": ["TASK-002"],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": "JWT token mismatch in payload - the OAuth token format doesn't match the existing JWT schema",
+      "tags": ["auth"],
+      "created_at": "2026-07-30T20:30:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": "2026-07-30T22:30:00Z",
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    }
+  ]
+}

@@ -18,7 +18,13 @@
     "validation:demo": "tsx src/workflows/validation-pipeline/demo.ts",
     "recovery:demo": "tsx src/workflows/recovery/demo.ts",
     "quality-gate:demo": "tsx src/workflows/quality-gate/demo.ts",
-    "merge-manager:demo": "tsx src/workflows/merge-manager/demo.ts"
+    "merge-manager:demo": "tsx src/workflows/merge-manager/demo.ts",
+    "po:create": "tsx src/scripts/po-cli.ts create",
+    "po:list": "tsx src/scripts/po-cli.ts list",
+    "po:details": "tsx src/scripts/po-cli.ts details",
+    "po:move": "tsx src/scripts/po-cli.ts move",
+    "po:stats": "tsx src/scripts/po-cli.ts stats",
+    "po:help": "tsx src/scripts/po-cli.ts help"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

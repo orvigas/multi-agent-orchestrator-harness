@@ -1,0 +1,35 @@
+{
+  "tickets": [
+    {
+      "id": "TASK-006",
+      "type": "feature",
+      "status": "rejected",
+      "title": "Add dark mode toggle",
+      "description": "Add dark mode toggle\n\nFunctionality: UI\nRestrictions: None",
+      "requirements": [
+        "Add dark mode toggle"
+      ],
+      "acceptance_criteria": [
+        "Add dark mode toggle is implemented"
+      ],
+      "size": "small",
+      "priority": "low",
+      "complexity": 1,
+      "story_points": 2,
+      "estimated_days": 1,
+      "parent_epic": null,
+      "subtasks": [],
+      "dependencies": [],
+      "blocked_by": null,
+      "rejection_reason": "Out of scope for current sprint - deferred to next quarter based on user feedback priorities",
+      "failure_reason": null,
+      "tags": ["ui"],
+      "created_at": "2026-07-30T20:32:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    }
+  ]
+}

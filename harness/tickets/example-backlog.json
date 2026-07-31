@@ -1,0 +1,175 @@
+{
+  "tickets": [
+    {
+      "id": "TASK-001",
+      "type": "epic",
+      "status": "backlog",
+      "title": "Google OAuth Implementation",
+      "description": "Implement Google OAuth2 flow with Google\n\nFunctionality: Módulo de autenticación\nRestrictions: Debe reutilizar JWT existente",
+      "requirements": [
+        "Users can login with Google",
+        "Users can signup with Google"
+      ],
+      "acceptance_criteria": [
+        "User can: Users can login with Google",
+        "User can: Users can signup with Google",
+        "Google OAuth Implementation is implemented",
+        "Respects restrictions: Debe reutilizar JWT existente"
+      ],
+      "size": "xlarge",
+      "priority": "high",
+      "complexity": 4,
+      "story_points": 8,
+      "estimated_days": 4,
+      "parent_epic": null,
+      "subtasks": ["TASK-002", "TASK-003", "TASK-004"],
+      "dependencies": [],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": null,
+      "tags": ["auth"],
+      "created_at": "2026-07-30T20:30:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    },
+    {
+      "id": "TASK-002",
+      "type": "feature",
+      "status": "backlog",
+      "title": "Google OAuth Implementation - Setup & Configuration",
+      "description": "Google OAuth Implementation - Setup & Configuration\n\nFunctionality: Módulo de autenticación\nRestrictions: Debe reutilizar JWT existente",
+      "requirements": [
+        "Users can login with Google",
+        "Users can signup with Google"
+      ],
+      "acceptance_criteria": [
+        "User can: Users can login with Google",
+        "User can: Users can signup with Google",
+        "Google OAuth Implementation - Setup & Configuration is implemented",
+        "Respects restrictions: Debe reutilizar JWT existente"
+      ],
+      "size": "medium",
+      "priority": "high",
+      "complexity": 3,
+      "story_points": 6,
+      "estimated_days": 3,
+      "parent_epic": "TASK-001",
+      "subtasks": [],
+      "dependencies": [],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": null,
+      "tags": ["auth"],
+      "created_at": "2026-07-30T20:30:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    },
+    {
+      "id": "TASK-003",
+      "type": "feature",
+      "status": "backlog",
+      "title": "Google OAuth Implementation - Core Implementation",
+      "description": "Google OAuth Implementation - Core Implementation\n\nFunctionality: Módulo de autenticación\nRestrictions: Debe reutilizar JWT existente",
+      "requirements": [
+        "Users can login with Google",
+        "Users can signup with Google"
+      ],
+      "acceptance_criteria": [
+        "User can: Users can login with Google",
+        "User can: Users can signup with Google",
+        "Google OAuth Implementation - Core Implementation is implemented",
+        "Respects restrictions: Debe reutilizar JWT existente"
+      ],
+      "size": "medium",
+      "priority": "high",
+      "complexity": 3,
+      "story_points": 6,
+      "estimated_days": 3,
+      "parent_epic": "TASK-001",
+      "subtasks": [],
+      "dependencies": ["TASK-002"],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": null,
+      "tags": ["auth"],
+      "created_at": "2026-07-30T20:30:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    },
+    {
+      "id": "TASK-004",
+      "type": "feature",
+      "status": "backlog",
+      "title": "Google OAuth Implementation - Integration & Testing",
+      "description": "Google OAuth Implementation - Integration & Testing\n\nFunctionality: Módulo de autenticación\nRestrictions: Debe reutilizar JWT existente",
+      "requirements": [
+        "Users can login with Google",
+        "Users can signup with Google"
+      ],
+      "acceptance_criteria": [
+        "User can: Users can login with Google",
+        "User can: Users can signup with Google",
+        "Google OAuth Implementation - Integration & Testing is implemented",
+        "Respects restrictions: Debe reutilizar JWT existente"
+      ],
+      "size": "medium",
+      "priority": "high",
+      "complexity": 3,
+      "story_points": 6,
+      "estimated_days": 3,
+      "parent_epic": "TASK-001",
+      "subtasks": [],
+      "dependencies": ["TASK-003"],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": null,
+      "tags": ["auth"],
+      "created_at": "2026-07-30T20:30:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    },
+    {
+      "id": "TASK-005",
+      "type": "feature",
+      "status": "backlog",
+      "title": "Add logout button to navbar",
+      "description": "Add logout button to navbar\n\nFunctionality: UI\nRestrictions: None",
+      "requirements": [
+        "Add logout button to navbar"
+      ],
+      "acceptance_criteria": [
+        "Add logout button to navbar is implemented"
+      ],
+      "size": "small",
+      "priority": "normal",
+      "complexity": 1,
+      "story_points": 2,
+      "estimated_days": 1,
+      "parent_epic": null,
+      "subtasks": [],
+      "dependencies": [],
+      "blocked_by": null,
+      "rejection_reason": null,
+      "failure_reason": null,
+      "tags": ["ui"],
+      "created_at": "2026-07-30T20:31:00Z",
+      "created_by": "product-owner-agent",
+      "started_at": null,
+      "completed_at": null,
+      "assignee": null,
+      "reviewer": null
+    }
+  ]
+}
