@@ -24,7 +24,8 @@
     "po:details": "tsx src/scripts/po-cli.ts details",
     "po:move": "tsx src/scripts/po-cli.ts move",
     "po:stats": "tsx src/scripts/po-cli.ts stats",
-    "po:help": "tsx src/scripts/po-cli.ts help"
+    "po:help": "tsx src/scripts/po-cli.ts help",
+    "po:test": "tsx --test src/agents/product-owner/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
