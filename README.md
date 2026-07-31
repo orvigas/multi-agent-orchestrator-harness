@@ -14,6 +14,15 @@ Automated intelligent code modification across entire codebases using real Claud
 
 ---
 
+## 📖 Documentation
+
+### Setup & Fixes
+- **[Quick Start Fixes](./QUICK_START_FIXES.md)** - Quick reference (14 fixes, installation guide)
+- **[Detailed Setup Fixes](./HARNESS_SETUP_FIXES.md)** - Complete documentation with before/after code examples
+- **[Getting Started](./docs/GETTING_STARTED.md)** - Initial setup guide
+
+---
+
 ## 🚀 Quick Start (5 minutes)
 
 ### Prerequisites
