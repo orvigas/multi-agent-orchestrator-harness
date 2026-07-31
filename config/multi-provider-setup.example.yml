@@ -1,0 +1,307 @@
+# Multi-Provider Setup Examples
+#
+# This file shows different configurations for distributing LLM workload
+# across Anthropic, OpenRouter, and OpenAI for cost optimization and resilience.
+#
+# To use: copy desired configuration to the actual config files
+# (planner.yml, implementation.yml, recovery.yml, etc.)
+
+---
+
+# EXAMPLE 1: Cost-Optimized Setup
+# Target: 30-40% cost reduction while maintaining quality
+#
+# Strategy:
+#   - Use cheap models (OpenRouter) for simple evidence retrieval
+#   - Keep expensive models (Anthropic) for complex reasoning (planning, code)
+#   - Use OpenAI/Anthropic as fallback
+
+cost_optimized:
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+      baseUrl: https://api.anthropic.com
+
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+      baseUrl: https://openrouter.ai/api/v1
+
+    openai:
+      apiKeyEnv: OPENAI_API_KEY
+
+  roleTimeouts:
+    discovery: 45_000      # Evidence search (structured retrieval)
+    planner: 60_000        # Complex planning
+    implementer: 45_000    # Code generation
+    recovery_diagnostician: 30_000
+    recovery_strategist: 15_000
+
+  roles:
+    # CHEAP ROLES (OpenRouter primary)
+
+    discovery:
+      provider: openrouter
+      model: qwen-coder-32b    # Strong coding understanding, cheap
+      fallbackProviders:
+        - anthropic            # Fallback to Claude if OpenRouter fails
+        - openai
+      maxTokens: 1500
+      temperature: 0.7
+
+    plan_validator:
+      provider: openrouter
+      model: mistral-large     # Cheaper validation
+      fallbackProviders:
+        - anthropic
+      maxTokens: 1000
+      temperature: 0.3
+
+    recovery_strategist:
+      provider: openrouter
+      model: mistral-7b        # Very fast decision making
+      fallbackProviders:
+        - anthropic
+      maxTokens: 500
+      temperature: 0.3
+
+    recovery_diagnostician:
+      provider: openrouter
+      model: qwen-coder-32b    # Pattern matching
+      fallbackProviders:
+        - anthropic
+      maxTokens: 1200
+      temperature: 0.3
+
+    # EXPENSIVE ROLES (Anthropic primary)
+
+    planner:
+      provider: anthropic
+      model: claude-opus-5     # Best reasoning for complex planning
+      fallbackProviders:
+        - openai               # GPT-4 if Anthropic unavailable
+      maxTokens: 3000
+      temperature: 0.5
+
+    implementer:
+      provider: anthropic
+      model: claude-opus-5     # Best code generation
+      fallbackProviders:
+        - openrouter           # qwen as fallback (surprisingly good)
+        - openai
+      maxTokens: 4000
+      temperature: 0.1
+
+---
+
+# EXAMPLE 2: High-Availability Setup
+# Target: Maximize uptime by load-balancing across providers
+#
+# Strategy:
+#   - Distribute evenly across providers for better rate limit handling
+#   - No single point of failure
+#   - Good cost/quality balance
+
+high_availability:
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+    openai:
+      apiKeyEnv: OPENAI_API_KEY
+
+  roles:
+    discovery:
+      provider: openrouter
+      fallbackProviders: [anthropic, openai]
+      maxTokens: 1500
+
+    planner:
+      provider: anthropic
+      fallbackProviders: [openai, openrouter]
+      maxTokens: 3000
+
+    implementer:
+      provider: anthropic
+      fallbackProviders: [openrouter, openai]
+      maxTokens: 4000
+
+    recovery_diagnostician:
+      provider: openai          # Load-balance to OpenAI
+      fallbackProviders: [anthropic, openrouter]
+      maxTokens: 1200
+
+    recovery_strategist:
+      provider: openrouter
+      fallbackProviders: [anthropic, openai]
+      maxTokens: 500
+
+---
+
+# EXAMPLE 3: Quality-First Setup
+# Target: Best possible output quality (less worried about cost)
+#
+# Strategy:
+#   - Use Claude Opus for everything (best reasoning)
+#   - OpenAI GPT-4 as fallback (most reliable)
+#   - OpenRouter only as last resort
+
+quality_first:
+  roles:
+    discovery:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openai, openrouter]
+      maxTokens: 2000
+      temperature: 0.7
+
+    planner:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openai]
+      maxTokens: 3500
+      temperature: 0.5
+
+    implementer:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openai, openrouter]
+      maxTokens: 4500
+      temperature: 0.1
+
+    recovery_diagnostician:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openai]
+      maxTokens: 1500
+      temperature: 0.3
+
+    recovery_strategist:
+      provider: anthropic
+      model: claude-sonnet-5   # Sonnet is fine for quick decisions
+      fallbackProviders: [openai]
+      maxTokens: 800
+      temperature: 0.3
+
+---
+
+# EXAMPLE 4: Testing/Development Setup
+# Target: Fast iteration, low costs (for CI/dev)
+#
+# Strategy:
+#   - Use deterministic mode (HARNESS_MODE=deterministic) as primary
+#   - When LLM needed, use cheapest options
+#   - Short timeouts (fail fast)
+
+testing:
+  # First: use HARNESS_MODE=deterministic (no LLM calls)
+  # If LLM needed:
+
+  roles:
+    discovery:
+      provider: openrouter
+      model: mistral-7b        # Fastest, cheapest
+      fallbackProviders: [openrouter]  # No expensive fallback
+      maxTokens: 500           # Minimal
+      temperature: 0.7
+      # Custom timeout for testing
+      timeoutMs: 10_000        # Very short
+
+    planner:
+      provider: openrouter
+      model: mistral-large     # Cheap but reasonable
+      fallbackProviders: [anthropic]  # Only if needed
+      maxTokens: 1000
+      temperature: 0.3
+      timeoutMs: 15_000
+
+    implementer:
+      provider: anthropic
+      model: claude-sonnet-5   # Not opus (cheaper)
+      fallbackProviders: [openrouter, openai]
+      maxTokens: 2000
+      temperature: 0.1
+      timeoutMs: 30_000
+
+---
+
+# EXAMPLE 5: Per-Provider Rate Limit Management
+# Target: Handle provider rate limits gracefully
+#
+# Strategy:
+#   - Monitor rate limits via circuit breaker
+#   - Use provider metrics to decide fallback strategy
+#   - Adjust timeouts based on provider health
+
+rate_limit_aware:
+  # Circuit breaker configured in src/services/llmCircuitBreaker.ts
+  # Default: opens circuit after 5 consecutive failures
+  # Adjust timeouts per provider based on expected latency:
+
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+      rateLimitHeaders:
+        remaining: "anthropic-ratelimit-remaining-requests"
+        resetTime: "anthropic-ratelimit-reset-requests"
+
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+      # OpenRouter provides credits not requests
+      rateLimitHeaders:
+        remaining: "x-ratelimit-remaining-credits"
+
+    openai:
+      apiKeyEnv: OPENAI_API_KEY
+      rateLimitHeaders:
+        remaining: "x-ratelimit-remaining-requests"
+
+  roles:
+    # When Anthropic circuit opens (rate limited),
+    # system auto-switches to OpenRouter for 60s,
+    # then tries Anthropic again (HALF_OPEN state)
+
+    implementer:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter, openai]
+
+      # Per-provider timeout strategies
+      providerTimeouts:
+        anthropic: 45_000   # Generous for reliable provider
+        openrouter: 30_000  # Shorter for fallback
+        openai: 20_000      # Shortest for expensive fallback
+
+      maxTokens: 4000
+      temperature: 0.1
+
+---
+
+# ENVIRONMENT VARIABLES FOR EACH SETUP
+#
+# Cost-Optimized:
+#   ANTHROPIC_API_KEY=sk-ant-v0-...
+#   OPENROUTER_API_KEY=sk-or-...
+#   HARNESS_MODE=llm
+#
+# High-Availability:
+#   ANTHROPIC_API_KEY=sk-ant-v0-...
+#   OPENROUTER_API_KEY=sk-or-...
+#   OPENAI_API_KEY=sk-...
+#   HARNESS_MODE=llm
+#
+# Quality-First:
+#   ANTHROPIC_API_KEY=sk-ant-v0-...
+#   OPENAI_API_KEY=sk-...
+#   OPENROUTER_API_KEY=sk-or-... (optional fallback)
+#   HARNESS_MODE=llm
+#
+# Testing:
+#   HARNESS_MODE=deterministic  # Primary: no LLM
+#   ANTHROPIC_API_KEY=sk-ant-v0-... (optional for LLM fallback)
+#   OPENROUTER_API_KEY=sk-or-... (optional for LLM fallback)
+#
+# Rate-Limit Aware:
+#   All three API keys required
+#   Adjust PROVIDER_TIMEOUTS_MS based on observed latency
+#   Monitor with: npm run harness:logs --provider-breakdown
