@@ -15,6 +15,7 @@ harness/.env.*.local
 .harness/releases.jsonl
 .harness/escalations/
 .harness/runs.jsonl
+harness/data/
 
 # Settings/estado locales de Claude Code (por-máquina/sesión, no compartidos).
 .claude/settings.local.json
