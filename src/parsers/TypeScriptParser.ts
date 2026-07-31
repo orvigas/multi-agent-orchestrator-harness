@@ -1,4 +1,4 @@
-import { Project, SyntaxKind } from "ts-morph";
+import { Project, SyntaxKind, ScriptTarget, ModuleKind } from "ts-morph";
 import fs from "fs";
 import path from "path";
 import type { LanguageParser, Symbol, Reference, Dependency, SearchResult, Parameter } from "./LanguageParser.js";
@@ -10,8 +10,8 @@ export class TypeScriptParser implements LanguageParser {
   constructor() {
     this.project = new Project({
       compilerOptions: {
-        target: "ES2020",
-        module: "ESNext",
+        target: ScriptTarget.ES2020,
+        module: ModuleKind.ESNext,
       },
     });
   }
@@ -64,7 +64,7 @@ export class TypeScriptParser implements LanguageParser {
               name: func.getName() || "unnamed",
               type: "function",
               filePath,
-              lineNumber: sourceFile.getLineNumberAtPos(func.getStart()),
+              lineNumber: sourceFile.getLineAndColumnAtPosition(func.getStart()).line,
               docstring: func.getJsDocs()[0]?.getText(),
               parameters: params,
             });
@@ -76,7 +76,7 @@ export class TypeScriptParser implements LanguageParser {
               name: cls.getName() || "unnamed",
               type: "class",
               filePath,
-              lineNumber: sourceFile.getLineNumberAtPos(cls.getStart()),
+              lineNumber: sourceFile.getLineAndColumnAtPosition(cls.getStart()).line,
               docstring: cls.getJsDocs()[0]?.getText(),
             });
 
@@ -92,7 +92,7 @@ export class TypeScriptParser implements LanguageParser {
                 name: method.getName(),
                 type: "method",
                 filePath,
-                lineNumber: sourceFile.getLineNumberAtPos(method.getStart()),
+                lineNumber: sourceFile.getLineAndColumnAtPosition(method.getStart()).line,
                 docstring: method.getJsDocs()[0]?.getText(),
                 parameters: params,
               });
@@ -105,7 +105,7 @@ export class TypeScriptParser implements LanguageParser {
               name: iface.getName(),
               type: "interface",
               filePath,
-              lineNumber: sourceFile.getLineNumberAtPos(iface.getStart()),
+              lineNumber: sourceFile.getLineAndColumnAtPosition(iface.getStart()).line,
               docstring: iface.getJsDocs()[0]?.getText(),
             });
           }
@@ -116,7 +116,7 @@ export class TypeScriptParser implements LanguageParser {
               name: typeAlias.getName(),
               type: "type",
               filePath,
-              lineNumber: sourceFile.getLineNumberAtPos(typeAlias.getStart()),
+              lineNumber: sourceFile.getLineAndColumnAtPosition(typeAlias.getStart()).line,
               docstring: typeAlias.getJsDocs()[0]?.getText(),
             });
           }
@@ -128,7 +128,7 @@ export class TypeScriptParser implements LanguageParser {
                 name: decl.getName(),
                 type: decl.getInitializer()?.getKind() === SyntaxKind.ArrowFunction ? "const" : "variable",
                 filePath,
-                lineNumber: sourceFile.getLineNumberAtPos(decl.getStart()),
+                lineNumber: sourceFile.getLineAndColumnAtPosition(decl.getStart()).line,
               });
             }
           }
@@ -157,7 +157,7 @@ export class TypeScriptParser implements LanguageParser {
         for (const ref of refs) {
           references.push({
             filePath: ref.getSourceFile().getFilePath(),
-            lineNumber: ref.getSourceFile().getLineNumberAtPos(ref.getStart()),
+            lineNumber: ref.getSourceFile().getLineAndColumnAtPosition(ref.getStart()).line,
             context: ref.getText().substring(0, 80),
           });
         }

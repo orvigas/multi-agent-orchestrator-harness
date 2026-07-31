@@ -1,0 +1,97 @@
+supportedLanguages:
+  typescript:
+    name: TypeScript/JavaScript
+    fileExtensions: ['.ts', '.tsx', '.js', '.jsx']
+    buildSystems: ['npm', 'yarn', 'pnpm']
+    validators:
+      - type: 'syntax'
+        tool: 'tsc'
+        command: 'tsc --noEmit'
+      - type: 'lint'
+        tool: 'eslint'
+        command: 'eslint .'
+    testRunners:
+      - type: 'unit'
+        tool: 'jest'
+        command: 'npm test'
+    parser: 'typescript'
+
+  java:
+    name: Java
+    fileExtensions: ['.java']
+    buildSystems: ['maven', 'gradle']
+    validators:
+      - type: 'syntax'
+        tool: 'javac'
+        command: 'javac -d . **/*.java'
+      - type: 'lint'
+        tool: 'checkstyle'
+        command: 'checkstyle -c /sun_checks.xml src/**/*.java'
+    testRunners:
+      - type: 'unit'
+        tool: 'junit'
+        command: 'mvn test'
+    parser: 'java-tree-sitter'
+
+  python:
+    name: Python
+    fileExtensions: ['.py']
+    buildSystems: ['pip', 'poetry', 'pipenv']
+    validators:
+      - type: 'syntax'
+        tool: 'python'
+        command: 'python -m py_compile'
+      - type: 'type-check'
+        tool: 'mypy'
+        command: 'mypy .'
+      - type: 'lint'
+        tool: 'flake8'
+        command: 'flake8 .'
+    testRunners:
+      - type: 'unit'
+        tool: 'pytest'
+        command: 'pytest'
+    parser: 'python-ast'
+
+  go:
+    name: Go
+    fileExtensions: ['.go']
+    buildSystems: ['go-modules']
+    validators:
+      - type: 'syntax'
+        tool: 'go'
+        command: 'go build ./...'
+      - type: 'lint'
+        tool: 'golangci-lint'
+        command: 'golangci-lint run ./...'
+    testRunners:
+      - type: 'unit'
+        tool: 'go-test'
+        command: 'go test ./...'
+    parser: 'go-tree-sitter'
+
+  rust:
+    name: Rust
+    fileExtensions: ['.rs']
+    buildSystems: ['cargo']
+    validators:
+      - type: 'syntax'
+        tool: 'cargo-check'
+        command: 'cargo check'
+      - type: 'lint'
+        tool: 'clippy'
+        command: 'cargo clippy -- -D warnings'
+    testRunners:
+      - type: 'unit'
+        tool: 'cargo-test'
+        command: 'cargo test'
+    parser: 'rust-tree-sitter'
+
+# Default settings per language
+defaults:
+  timeout:
+    syntax: 30000
+    lint: 60000
+    test: 120000
+  maxParallelValidators: 3
+  stopOnFirstValidationFailure: false
