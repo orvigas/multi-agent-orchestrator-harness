@@ -1,39 +1,36 @@
 import fs from "node:fs";
 import path from "node:path";
-import { MemorySaver } from "@langchain/langgraph";
+import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 
 /**
  * Create a checkpoint saver for the Orchestrator.
  *
- * TODO (Phase 1.1): Implement SQLite checkpointing
+ * Phase 1.1: SQLite checkpointing (implemented)
  * - Environment: CHECKPOINT_DB_PATH (./data/harness-checkpoints.db)
- * - Import: import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite"
- * - Return: new SqliteSaver({ connectionString: dbPath })
+ * - Uses: SqliteSaver from @langchain/langgraph-checkpoint-sqlite
  *
- * TODO (Phase 1.3): Implement PostgreSQL checkpointing (for production scaling)
+ * Phase 1.3: PostgreSQL checkpointing (for future production scaling)
  * - Environment: CHECKPOINT_DB_URL
- * - Import: import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres"
- * - Return: new PostgresSaver({ connectionString: dbUrl })
- *
- * For now, using MemorySaver (in-memory, no persistence between processes)
+ * - TODO: Import PostgresSaver from @langchain/langgraph-checkpoint-postgres
  */
 export function createCheckpointer(): BaseCheckpointSaver {
   const dbUrl = process.env.CHECKPOINT_DB_URL;
-  const dbPath = process.env.CHECKPOINT_DB_PATH;
+  const dbPath = process.env.CHECKPOINT_DB_PATH || "./data/harness-checkpoints.db";
 
   if (dbUrl) {
     console.log("⚠️  PostgreSQL checkpointing not yet implemented (TODO Phase 1.3)");
-    console.log("Using MemorySaver as fallback (state lost on restart)");
-  } else if (dbPath) {
-    console.log("⚠️  SQLite checkpointing not yet implemented (TODO Phase 1.1)");
-    console.log(`Using MemorySaver as fallback (TODO: implement SqliteSaver with ${dbPath})`);
-  } else {
-    console.log("📦 Using MemorySaver (in-memory, for development/testing)");
+    console.log(`Falling back to SQLite: ${dbPath}`);
   }
 
-  // Temporary: use MemorySaver until SQLite/PostgreSQL is ready
-  return new MemorySaver();
+  // Ensure directory exists
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  console.log(`✅ Using SQLite Checkpointer: ${dbPath}`);
+  return new SqliteSaver({ connectionString: `file:${dbPath}` });
 }
 
 /**

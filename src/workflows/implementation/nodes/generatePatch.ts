@@ -15,8 +15,8 @@ const CONTEXT_LINES = 2;
 // (líneas reales del archivo, nunca números de línea), aplicado y
 // verificado de verdad en applyInSandbox/quickCheck. Lo que sí es real: el
 // chequeo de forbidden-zones contra .harness/rules real (Capa 1).
-function buildHunkForFile(file: string, taskId: string): PatchHunk | null {
-  const absPath = path.resolve(process.cwd(), file);
+function buildHunkForFile(file: string, taskId: string, targetPath: string): PatchHunk | null {
+  const absPath = path.resolve(targetPath, file);
   if (!fs.existsSync(absPath)) return null;
 
   const lines = fs.readFileSync(absPath, "utf8").split("\n");
@@ -193,7 +193,7 @@ IMPORTANT:
 
   // Modo determinístico o fallback: usar heurística
   const hunks = task.touchesFiles
-    .map((file) => buildHunkForFile(file, task.id))
+    .map((file) => buildHunkForFile(file, task.id, state.targetPath))
     .filter((h): h is PatchHunk => h !== null);
 
   const rationale = feedback
