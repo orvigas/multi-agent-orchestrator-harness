@@ -59,7 +59,7 @@ export class ProductOwnerAgent {
 
       console.log('\nPhase 3: ANÁLISIS DE COMPLEJIDAD\n──────────────────────────────────────────────────────');
 
-      const initialTicket = this.generator.createTicket(refinement);
+      const initialTicket = await this.generator.createTicket(refinement);
       const shouldDivide = this.divider.shouldDivide(initialTicket);
 
       if (shouldDivide) {
@@ -69,7 +69,7 @@ export class ProductOwnerAgent {
         const divideAnswer = await this.question(formatConfirmation(CONFIRMATION_QUESTIONS[0]));
         if (divideAnswer.toLowerCase().startsWith('s')) {
           console.log('\nPhase 4: DIVISIÓN DE TAREAS\n──────────────────────────────────────────────────────');
-          const tickets = this.divider.divideTicket(initialTicket, refinement);
+          const tickets = await this.divider.divideTicket(initialTicket, refinement);
           await this.confirmAndSave(tickets);
           return;
         }

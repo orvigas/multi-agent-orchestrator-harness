@@ -42,3 +42,21 @@ roles:
     provider: anthropic
     model: claude-sonnet-5
     maxTokens: 4096
+
+  # Product Owner Agent roles (declarados acá pero configurados en product-owner.yml)
+  ticket_generator:
+    provider: anthropic
+    model: claude-opus-5
+    maxTokens: 2048
+  requirement_refiner:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024
+  task_analyzer:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024
+  acceptance_criteria_generator:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024

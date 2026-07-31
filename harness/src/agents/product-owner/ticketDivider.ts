@@ -12,18 +12,18 @@ export class TicketDivider {
     return ticket.size === 'xlarge' || (ticket.complexity >= 4 && ticket.requirements.length > 4);
   }
 
-  divideTicket(ticket: Ticket, refinement: RefinementData): Ticket[] {
+  async divideTicket(ticket: Ticket, refinement: RefinementData): Promise<Ticket[]> {
     if (!this.shouldDivide(ticket)) {
       return [ticket];
     }
 
-    const subtasks = this.generateSubtasks(refinement, ticket.id);
+    const subtasks = await this.generateSubtasks(refinement, ticket.id);
     const epic = this.createEpic(ticket, subtasks.map((st) => st.id));
 
     return [epic, ...subtasks];
   }
 
-  private generateSubtasks(refinement: RefinementData, parentId: string): Ticket[] {
+  private async generateSubtasks(refinement: RefinementData, parentId: string): Promise<Ticket[]> {
     const subtasks: Ticket[] = [];
 
     const baseNames = [
@@ -47,7 +47,7 @@ export class TicketDivider {
         complexity: Math.max(1, (refinement.complexity || 2) - 1),
       };
 
-      const subtask = this.generator.createTicket(subtaskRefinement, true);
+      const subtask = await this.generator.createTicket(subtaskRefinement, true);
       subtask.type = 'feature';
       subtask.size = 'medium';
       subtask.parent_epic = parentId;

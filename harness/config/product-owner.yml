@@ -1,0 +1,99 @@
+# Product Owner Agent Configuration
+# Roles and models for interactive ticket creation and refinement
+
+roles:
+  # Main agent for Q&A loop and ticket generation
+  ticket_generator:
+    provider: anthropic
+    model: claude-opus-5
+    maxTokens: 2048
+    description: |
+      Generates high-quality tickets based on user input.
+      Responsible for creating acceptance criteria and estimating complexity.
+
+  # Refines user input with follow-up questions
+  requirement_refiner:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024
+    description: |
+      Asks clarifying questions to refine user requirements.
+      Extracts key information from conversational input.
+
+  # Determines if a ticket should be divided
+  task_analyzer:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024
+    description: |
+      Analyzes task complexity and determines if it should be divided.
+      Suggests epic structure for large tasks.
+
+  # Generates acceptance criteria
+  acceptance_criteria_generator:
+    provider: anthropic
+    model: claude-sonnet-5
+    maxTokens: 1024
+    description: |
+      Generates well-formed acceptance criteria from requirements.
+      Uses BDD/Gherkin patterns.
+
+# Mode configuration
+modes:
+  # Deterministic mode: use heuristics only (no LLM calls)
+  deterministic:
+    enabled: true
+    description: Fast, reproducible, no API cost
+    useLLM: false
+
+  # LLM mode: use Claude for enhanced quality
+  llm:
+    enabled: true
+    description: High-quality tickets with intelligent refinement
+    useLLM: true
+    # Fall back to deterministic if LLM fails
+    fallbackToDeterministic: true
+
+# Budget limits for LLM mode
+budget:
+  # Maximum cost per ticket creation session
+  perSession: 2.00  # USD
+  # Maximum total monthly cost
+  monthly: 500.00   # USD
+  # Warn at this percentage of budget
+  warnAt: 80
+
+# Feature flags
+features:
+  # Use LLM for requirement refinement
+  llmRefinement: true
+  # Use LLM for acceptance criteria generation
+  llmAcceptanceCriteria: true
+  # Use LLM for task complexity analysis
+  llmComplexityAnalysis: true
+  # Use LLM for division suggestion
+  llmTaskDivision: true
+  # Enable experimental features
+  experimental: false
+
+# Refinement questions (can be enhanced by LLM)
+refinement:
+  questions:
+    - functionality
+    - useCases
+    - priority
+    - restrictions
+    - beneficiaries
+  # Generate additional questions with LLM
+  generateAdditionalQuestions: true
+  maxAdditionalQuestions: 3
+
+# Complexity estimation
+complexity:
+  # Use LLM to estimate complexity
+  useLLM: true
+  # Override with heuristics if LLM fails
+  fallbackToHeuristics: true
+  # Scale: 1-5
+  minComplexity: 1
+  maxComplexity: 5

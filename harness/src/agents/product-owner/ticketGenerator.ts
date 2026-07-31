@@ -1,4 +1,5 @@
 import { Ticket, TicketMetadata, RefinementData, TicketGenerationResult, TicketType } from './types';
+import { ProductOwnerLLMService } from './llmService';
 import fs from 'fs';
 import path from 'path';
 
@@ -7,9 +8,11 @@ const ARCHIVE_PATH = path.join(process.cwd(), 'harness/tickets/archive.json');
 
 export class TicketGenerator {
   private metadata: TicketMetadata;
+  private llmService: ProductOwnerLLMService;
 
   constructor() {
     this.metadata = this.loadMetadata();
+    this.llmService = new ProductOwnerLLMService();
   }
 
   private loadMetadata(): TicketMetadata {
@@ -42,7 +45,17 @@ export class TicketGenerator {
     return id;
   }
 
-  private estimateComplexity(refinement: RefinementData): number {
+  async estimateComplexity(refinement: RefinementData): Promise<number> {
+    // Try LLM first if enabled
+    if (this.llmService.isEnabled()) {
+      try {
+        return await this.llmService.estimateComplexity(refinement);
+      } catch (error) {
+        console.warn('LLM complexity estimation failed, falling back to heuristics');
+      }
+    }
+
+    // Fallback to heuristics
     let complexity = 2;
 
     if (refinement.restrictions && refinement.restrictions.length > 0) complexity += 1;
@@ -59,10 +72,23 @@ export class TicketGenerator {
     return 'small';
   }
 
-  createTicket(refinement: RefinementData, isSubtask: boolean = false): Ticket {
+  async createTicket(refinement: RefinementData, isSubtask: boolean = false): Promise<Ticket> {
     const id = this.generateId();
-    const complexity = this.estimateComplexity(refinement);
+    const complexity = await this.estimateComplexity(refinement);
     const size = this.estimateSize(complexity, refinement.requirements?.length || 1);
+
+    // Generate acceptance criteria with LLM if available
+    let acceptanceCriteria = this.generateAcceptanceCriteria(refinement);
+    if (this.llmService.isEnabled()) {
+      try {
+        const llmCriteria = await this.llmService.generateAcceptanceCriteria(refinement);
+        if (llmCriteria.length > 0) {
+          acceptanceCriteria = llmCriteria;
+        }
+      } catch (error) {
+        console.warn('LLM acceptance criteria generation failed, using heuristics');
+      }
+    }
 
     return {
       id,
@@ -71,7 +97,7 @@ export class TicketGenerator {
       title: refinement.userRequest,
       description: `${refinement.userRequest}\n\nFunctionality: ${refinement.functionality || 'Not specified'}\nRestrictions: ${refinement.restrictions?.join(', ') || 'None'}`,
       requirements: refinement.requirements || [refinement.userRequest],
-      acceptance_criteria: this.generateAcceptanceCriteria(refinement),
+      acceptance_criteria: acceptanceCriteria,
       size: size as any,
       priority: refinement.priority || 'normal',
       complexity,
@@ -105,8 +131,8 @@ export class TicketGenerator {
     return criteria;
   }
 
-  generateEpic(refinement: RefinementData, subtaskIds: string[]): Ticket {
-    const epicTicket = this.createTicket(refinement);
+  async generateEpic(refinement: RefinementData, subtaskIds: string[]): Promise<Ticket> {
+    const epicTicket = await this.createTicket(refinement);
     epicTicket.type = 'epic';
     epicTicket.size = 'xlarge';
     epicTicket.subtasks = subtaskIds;
