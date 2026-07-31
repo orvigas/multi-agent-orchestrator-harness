@@ -5,6 +5,7 @@
   "description": "Harness multi-agente independiente, construido con LangGraph.js",
   "type": "module",
   "scripts": {
+    "install-legacy": "npm install --legacy-peer-deps",
     "dev": "tsx src/index.ts",
     "execute": "tsx src/index.ts",
     "logs": "tsx src/orchestrator/harnessLogs.ts",
@@ -31,7 +32,7 @@
     "@anthropic-ai/sdk": "^0.115.0",
     "@langchain/anthropic": "^0.4.0",
     "@langchain/core": "^1.1.44",
-    "@langchain/langgraph": "^0.4.0",
+    "@langchain/langgraph": "^0.2.44",
     "@langchain/langgraph-checkpoint-sqlite": "^1.0.3",
     "@langchain/openai": "^0.5.0",
     "better-sqlite3": "^13.0.2",
