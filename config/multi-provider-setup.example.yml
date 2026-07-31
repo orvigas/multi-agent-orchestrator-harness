@@ -277,6 +277,198 @@ rate_limit_aware:
 
 ---
 
+# EXAMPLE 6: Elite Setup
+# Target: Maximum quality with Anthropic Opus for all roles
+# Strategy: Best possible output, cost is not a concern
+# Savings: 0% (uses only Anthropic Opus, highest quality)
+
+elite:
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+
+  roleTimeouts:
+    discovery: 60_000       # Generous timeout for best reasoning
+    planner: 90_000         # Extra time for complex planning
+    implementer: 90_000     # Extra time for best code generation
+    recovery_diagnostician: 60_000
+    recovery_strategist: 30_000
+
+  roles:
+    discovery:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter]
+      maxTokens: 3000
+      temperature: 0.6
+
+    planner:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter]
+      maxTokens: 6000
+      temperature: 0.3
+
+    implementer:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter]
+      maxTokens: 8000
+      temperature: 0.1
+
+    plan_validator:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter]
+      maxTokens: 3000
+      temperature: 0.2
+
+    recovery_diagnostician:
+      provider: anthropic
+      model: claude-opus-5
+      fallbackProviders: [openrouter]
+      maxTokens: 3000
+      temperature: 0.2
+
+    recovery_strategist:
+      provider: anthropic
+      model: claude-sonnet-5  # Sonnet is sufficient for quick decisions
+      fallbackProviders: [openrouter]
+      maxTokens: 1000
+      temperature: 0.2
+
+---
+
+# EXAMPLE 7: Balanced Setup
+# Target: Mix of Anthropic Sonnet + OpenRouter for optimal quality/cost ratio
+# Strategy: Use Sonnet for complex reasoning, OpenRouter for retrieval/validation
+# Savings: 20-30% (vs full Opus)
+
+balanced:
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+
+  roleTimeouts:
+    discovery: 45_000       # OpenRouter models: fast, structured retrieval
+    planner: 60_000         # Sonnet: good reasoning, good speed
+    implementer: 60_000     # Sonnet: strong code generation
+    recovery_diagnostician: 30_000
+    recovery_strategist: 15_000
+
+  roles:
+    discovery:
+      provider: openrouter
+      model: qwen3-coder     # Strong code understanding, very cheap
+      fallbackProviders: [anthropic]
+      maxTokens: 2000
+      temperature: 0.5
+
+    planner:
+      provider: anthropic
+      model: claude-sonnet-5 # Good planning at 20% of Opus cost
+      fallbackProviders: [openrouter]
+      maxTokens: 4000
+      temperature: 0.3
+
+    implementer:
+      provider: anthropic
+      model: claude-sonnet-5 # Excellent code generation, lower cost
+      fallbackProviders: [openrouter]
+      maxTokens: 6000
+      temperature: 0.1
+
+    plan_validator:
+      provider: openrouter
+      model: deepseek-v3.1   # Good validation, structured reasoning
+      fallbackProviders: [anthropic]
+      maxTokens: 2000
+      temperature: 0.2
+
+    recovery_diagnostician:
+      provider: openrouter
+      model: qwen3-coder     # Fast pattern matching
+      fallbackProviders: [anthropic]
+      maxTokens: 2000
+      temperature: 0.2
+
+    recovery_strategist:
+      provider: openrouter
+      model: kimi-k2         # Fast decision logic, very cheap
+      fallbackProviders: [anthropic]
+      maxTokens: 800
+      temperature: 0.2
+
+---
+
+# EXAMPLE 8: Budget Setup
+# Target: Maximum cost savings with acceptable quality
+# Strategy: Use OpenRouter cheap models for everything, Anthropic fallback only
+# Savings: 60-70% (vs full Opus), quality: ~70% of best
+
+budget:
+  providers:
+    anthropic:
+      apiKeyEnv: ANTHROPIC_API_KEY
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+
+  roleTimeouts:
+    discovery: 30_000       # Short timeouts: catch and move on
+    planner: 45_000         # Shorter than balanced: accept less deliberation
+    implementer: 45_000     # Still generous for code generation
+    recovery_diagnostician: 25_000
+    recovery_strategist: 10_000  # Very fast strategy decisions
+
+  roles:
+    discovery:
+      provider: openrouter
+      model: qwen3-coder     # Best value for code understanding
+      fallbackProviders: [anthropic]
+      maxTokens: 1500
+      temperature: 0.6
+
+    planner:
+      provider: openrouter
+      model: deepseek-v3.1   # Good reasoning at 10% of Opus cost
+      fallbackProviders: [anthropic]
+      maxTokens: 2500
+      temperature: 0.3
+
+    implementer:
+      provider: openrouter
+      model: qwen3-coder     # Strong code generation + cheap
+      fallbackProviders: [anthropic]
+      maxTokens: 3500
+      temperature: 0.1
+
+    plan_validator:
+      provider: openrouter
+      model: mistral-small   # Very fast validation, minimal cost
+      fallbackProviders: [anthropic]
+      maxTokens: 1000
+      temperature: 0.2
+
+    recovery_diagnostician:
+      provider: openrouter
+      model: deepseek-v3.1   # Fast diagnosis, cheap
+      fallbackProviders: [anthropic]
+      maxTokens: 1500
+      temperature: 0.2
+
+    recovery_strategist:
+      provider: openrouter
+      model: kimi-k2         # Fastest + cheapest strategy selection
+      fallbackProviders: [anthropic]
+      maxTokens: 500
+      temperature: 0.2
+
+---
+
 # ENVIRONMENT VARIABLES FOR EACH SETUP
 #
 # Cost-Optimized:
@@ -305,3 +497,24 @@ rate_limit_aware:
 #   All three API keys required
 #   Adjust PROVIDER_TIMEOUTS_MS based on observed latency
 #   Monitor with: npm run harness:logs --provider-breakdown
+#
+# Elite (Maximum Quality):
+#   ANTHROPIC_API_KEY=sk-ant-v0-...
+#   OPENROUTER_API_KEY=sk-or-... (fallback only)
+#   HARNESS_MODE=llm
+#   Cost: ~$50 per 1000 tickets (no savings)
+#   Quality: Best possible (100%)
+#
+# Balanced (Mixed Sonnet + OpenRouter):
+#   ANTHROPIC_API_KEY=sk-ant-v0-...
+#   OPENROUTER_API_KEY=sk-or-...
+#   HARNESS_MODE=llm
+#   Cost: ~$30-35 per 1000 tickets (20-30% savings)
+#   Quality: ~95% of elite
+#
+# Budget (Maximum Savings):
+#   OPENROUTER_API_KEY=sk-or-...
+#   ANTHROPIC_API_KEY=sk-ant-v0-... (optional fallback)
+#   HARNESS_MODE=llm
+#   Cost: ~$15-20 per 1000 tickets (60-70% savings)
+#   Quality: ~70% of elite
