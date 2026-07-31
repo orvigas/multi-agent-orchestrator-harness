@@ -10,6 +10,7 @@ export async function gatherTaskContextNode(state: ImplementationStateType) {
 
   const result = await knowledgeEngineWorkflow.invoke({
     ticket: { id: task.id, title: task.description },
+    targetPath: state.targetPath,
   });
 
   return { taskContext: result.evidencePackage ?? result.confirmedEvidence };
