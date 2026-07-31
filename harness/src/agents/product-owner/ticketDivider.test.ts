@@ -7,13 +7,13 @@ test('TicketDivider', async (t) => {
   const divider = new TicketDivider();
 
   await t.test('should detect xlarge tickets for division', () => {
-    const xlargeTick et = {
+    const xlargeTicket = {
       size: 'xlarge',
       complexity: 5,
       requirements: ['req1', 'req2', 'req3', 'req4', 'req5'],
     } as any;
 
-    const shouldDivide = divider.shouldDivide(xlargeTick et);
+    const shouldDivide = divider.shouldDivide(xlargeTicket);
     assert.strictEqual(shouldDivide, true);
   });
 
