@@ -15,16 +15,17 @@ export function parseCoverageOutput(output: string): number {
   return match ? Number.parseFloat(match[1]) : 0;
 }
 
-let baselinePct: number | null = null;
+const baselinePctByTargetPath = new Map<string, number>();
 
-// El baseline se calcula UNA vez contra el repo real sin parchear (cacheado
-// a nivel de módulo, mismo patrón que el resto de los caches del harness) —
-// no tiene sentido recalcularlo por cada task, ya que ninguna task toca el
-// repo real, solo su propio sandbox.
-async function measureBaseline(command: string): Promise<number> {
-  if (baselinePct !== null) return baselinePct;
-  const { stdout, stderr } = await runCommand(command, { cwd: process.cwd(), timeoutMs: COVERAGE_TIMEOUT_MS });
-  baselinePct = parseCoverageOutput(stdout + stderr);
+// El baseline se calcula contra el target repo (no process.cwd()).
+// Cacheado por targetPath para soportar múltiples targets en la misma sesión.
+async function measureBaseline(command: string, targetPath: string): Promise<number> {
+  if (baselinePctByTargetPath.has(targetPath)) {
+    return baselinePctByTargetPath.get(targetPath)!;
+  }
+  const { stdout, stderr } = await runCommand(command, { cwd: targetPath, timeoutMs: COVERAGE_TIMEOUT_MS });
+  const baselinePct = parseCoverageOutput(stdout + stderr);
+  baselinePctByTargetPath.set(targetPath, baselinePct);
   return baselinePct;
 }
 
@@ -32,7 +33,7 @@ export async function checkCoverageNode(state: QualityGateStateType): Promise<{ 
   const config = loadQualityGateConfig();
   const { command, maxDropPct } = config.qualityGate.coverage;
 
-  const beforePct = await measureBaseline(command);
+  const beforePct = await measureBaseline(command, state.targetPath);
   const { stdout, stderr } = await runCommand(command, { cwd: state.sandboxPath, timeoutMs: COVERAGE_TIMEOUT_MS });
   const afterPct = parseCoverageOutput(stdout + stderr);
 

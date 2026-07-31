@@ -1,7 +1,7 @@
-import fs from "node:fs";
 import path from "node:path";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
+import { ensureDir, resolveCheckpointDbPath } from "../utils/filesystem.js";
 
 /**
  * Create a checkpoint saver for the Orchestrator.
@@ -17,21 +17,15 @@ import type { BaseCheckpointSaver } from "@langchain/langgraph";
  */
 export function createCheckpointer(): BaseCheckpointSaver {
   const dbUrl = process.env.CHECKPOINT_DB_URL;
-  const dbPath = process.env.CHECKPOINT_DB_PATH || "./data/harness-checkpoints.db";
+  const dbPath = resolveCheckpointDbPath();
 
   if (dbUrl) {
     console.log("⚠️  PostgreSQL checkpointing not yet implemented (TODO Phase 1.3)");
     console.log(`Falling back to SQLite: ${dbPath}`);
   }
 
-  // Ensure directory exists
-  const dir = path.dirname(dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
+  ensureDir(path.dirname(dbPath));
   console.log(`✅ Using SQLite Checkpointer: ${dbPath}`);
-  // SqliteSaver.fromConnString() handles database initialization automatically
   return SqliteSaver.fromConnString(dbPath);
 }
 
@@ -40,14 +34,10 @@ export function createCheckpointer(): BaseCheckpointSaver {
  * The SQLite file will be created automatically on first use.
  */
 export async function validateCheckpointer(): Promise<{ success: boolean; path?: string; error?: string }> {
-  const dbPath = process.env.CHECKPOINT_DB_PATH || "./data/harness-checkpoints.db";
+  const dbPath = resolveCheckpointDbPath();
 
   try {
-    // Ensure directory exists
-    const dir = path.dirname(dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    ensureDir(path.dirname(dbPath));
     return { success: true, path: dbPath };
   } catch (err) {
     return { success: false, error: (err as Error).message };
