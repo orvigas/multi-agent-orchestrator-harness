@@ -4,6 +4,8 @@
 
 Automated intelligent code modification across entire codebases using real Claude API calls, complete validation pipeline, intelligent recovery strategies, and human-in-the-loop quality gates.
 
+> **Note**: This harness is designed to work with **any target repository**. The harness itself is completely decoupled and lives in its own `harness/` directory.
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue)](https://www.typescriptlang.org/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2.44+-purple)](https://github.com/langchain-ai/langgraph)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
@@ -20,27 +22,43 @@ node --version  # Must be v18+
 ```
 
 ### Installation
+
+**Step 1: Set up the harness**
 ```bash
+cd harness
 npm install
-cp .env.production .env  # Copy production env template
+cp .env.example .env
+# Edit .env with your API keys (ANTHROPIC_API_KEY, etc.)
 ```
 
-### Run Orchestrator
+**Step 2: Run the orchestrator**
 ```bash
-# Deterministic mode (no LLM calls, reproducible)
+# Deterministic mode (no LLM calls, reproducible, for testing)
 npm run dev
 
-# LLM mode (real Claude API)
-HARNESS_MODE=llm npm run dev -- --target /path/to/repo
+# LLM mode (real Claude API, for production)
+HARNESS_MODE=llm npm run dev
 ```
 
-### Example: Single Ticket
+### Example: Process a Single Ticket
+
+Create a `harness/backlog.json`:
+```json
+[
+  {
+    "ticketId": "TASK-1",
+    "title": "Add email validation to LoginService",
+    "description": "Users report login failures after restart",
+    "targetRepoPath": "/path/to/target-repo",
+    "requirements": "..."
+  }
+]
+```
+
+Then run:
 ```bash
-npm run dev -- \
-  --target /path/to/repo \
-  --ticket-id "TASK-1" \
-  --title "Add email validation to LoginService" \
-  --description "Users report login failures after restart"
+cd harness
+npm run dev  # Processes backlog.json
 ```
 
 ---
@@ -197,13 +215,19 @@ npm run dev -- --dry-run  # Validate without executing
 
 ## 🔧 Commands
 
+**All commands run from `harness/` directory:**
+
+```bash
+cd harness
+```
+
 ### Development
 
 ```bash
-npm run dev              # Run full orchestrator (demo backlog)
+npm run dev              # Run full orchestrator
 npm run typecheck        # TypeScript validation
-npx eslint .             # Code linting
-npm test                 # Run all 246 tests
+npm run typecheck -- --noEmit  # Strict type check
+npm test                 # Run all tests
 ```
 
 ### Per-Layer Standalone Demos
@@ -216,14 +240,15 @@ npm run validation:demo     # Validation Pipeline
 npm run recovery:demo       # Recovery Loop
 npm run quality-gate:demo   # Quality Gate
 npm run merge-manager:demo  # Merge Manager
+npm run kb:index            # Pre-warm Knowledge Engine index
 ```
 
 ### Production Operations
 
 ```bash
-npm run harness:execute -- --target /repo     # Main execution
-npm run harness:logs -- --days=7              # View audit logs
-npm run harness:costs -- --days=7             # View cost breakdown
+npm run execute          # Main orchestrator execution
+npm run logs             # View execution logs
+npm run costs            # View token usage & costs
 ```
 
 ---
@@ -231,53 +256,81 @@ npm run harness:costs -- --days=7             # View cost breakdown
 ## 🏗️ Project Structure
 
 ```
-├── src/
-│   ├── orchestrator/           # Layer 1: Main orchestrator
-│   │   ├── graph.ts           # State graph definition
-│   │   ├── state.ts           # OrchestratorState schema
-│   │   └── nodes/             # Adapter nodes (invoke subgraphs)
-│   │
-│   ├── workflows/              # Layers 2-8: Individual subgraphs
-│   │   ├── knowledge-engine/  # Layer 2: Evidence retrieval
-│   │   ├── planner/           # Layer 3: Planning
-│   │   ├── implementation/    # Layer 4: Patch generation
-│   │   ├── validation-pipeline/ # Layer 5: Real tools
-│   │   ├── recovery/          # Layer 6: Failure recovery
-│   │   ├── quality-gate/      # Layer 7: Quality checks
-│   │   └── merge-manager/     # Layer 8: Merge + close
-│   │
-│   ├── services/               # Shared services
-│   │   ├── llm.ts             # LLM call wrapper
-│   │   ├── llmCircuitBreaker.ts # Circuit breaker state machine
-│   │   ├── tokenBudgetEnforcer.ts # Budget enforcement
-│   │   └── modelDowngradeStrategy.ts # Cost-aware model selection
-│   │
-│   ├── config/                 # Configuration loaders
-│   │   ├── loadConfig.ts       # Load providers + roles
-│   │   ├── orchestrator.yml    # Layer 1 config
-│   │   ├── providers.yml       # API key + model mappings
-│   │   └── <layer>.yml         # Per-layer configs
-│   │
-│   └── index.ts               # CLI entry point
+.
+├── src/                        # TARGET REPOSITORY (parsers, validators, test-runners, etc.)
+│   ├── build-systems/          # Compiler/build integration
+│   ├── languages/              # Language detection
+│   ├── parsers/                # Code parsers (Java, Python, Go, Rust, etc.)
+│   ├── validators/             # Code validators
+│   ├── test-runners/           # Test execution engines
+│   ├── persistence/            # Data persistence layer
+│   ├── utils/                  # Utility functions
+│   └── services/               # Host-specific services
 │
-├── .harness/                   # Project context (rules + architecture + governance)
-│   ├── rules/                 # Forbidden zones, coding style, testing
-│   ├── architecture/          # ADRs, patterns, performance-sensitive areas
-│   └── governance/            # Policy docs per layer
+├── harness/                    # 🚀 INDEPENDENT HARNESS (self-contained, removable)
+│   ├── src/
+│   │   ├── orchestrator/           # Layer 0: Main orchestrator
+│   │   │   ├── graph.ts           # State graph definition
+│   │   │   ├── state.ts           # OrchestratorState schema
+│   │   │   └── nodes/             # Adapter nodes (invoke subgraphs)
+│   │   │
+│   │   ├── workflows/              # Layers 1-8: Individual subgraphs
+│   │   │   ├── knowledge-engine/  # Layer 1: Evidence retrieval
+│   │   │   ├── planner/           # Layer 2: Planning
+│   │   │   ├── implementation/    # Layer 3: Patch generation
+│   │   │   ├── validation-pipeline/ # Layer 4: Real tools
+│   │   │   ├── recovery/          # Layer 5: Failure recovery
+│   │   │   ├── quality-gate/      # Layer 6: Quality checks
+│   │   │   └── merge-manager/     # Layer 7: Merge + close
+│   │   │
+│   │   ├── services/               # Harness services
+│   │   │   ├── llm.ts             # LLM call wrapper
+│   │   │   ├── llmCircuitBreaker.ts
+│   │   │   ├── tokenBudgetEnforcer.ts
+│   │   │   └── modelDowngradeStrategy.ts
+│   │   │
+│   │   ├── config/                 # Config loaders
+│   │   │   ├── loadContext.ts      # Load .harness/ (shared context)
+│   │   │   └── load*.ts            # Load YAML configs
+│   │   │
+│   │   ├── index.ts               # Harness entry point
+│   │   └── *.test.ts              # Tests
+│   │
+│   ├── config/                      # YAML configuration (harness-specific)
+│   │   ├── orchestrator.yml         # Layer 0 config
+│   │   ├── knowledge-engine.yml
+│   │   ├── planner.yml
+│   │   ├── providers.yml            # LLM providers (Anthropic, OpenAI, etc.)
+│   │   └── ...
+│   │
+│   ├── package.json                 # Harness dependencies (independent)
+│   ├── tsconfig.json                # TypeScript config (independent)
+│   ├── .env.example                 # Environment template
+│   ├── .env                         # Actual config (gitignored)
+│   ├── README.md                    # Harness documentation
+│   └── .gitignore                   # Harness .gitignore
 │
-├── docs/                       # Phase documentation
+├── .harness/                        # ✅ SHARED CONTEXT (rules, architecture, governance)
+│   ├── rules/                       # Forbidden zones, coding style
+│   ├── architecture/                # ADRs, patterns, performance notes
+│   └── governance/                  # Policy docs per layer
+│
+├── .codegraph/                      # Code intelligence index (shared)
+├── .claude/                         # Claude Code config (shared)
+│
+├── docs/                            # Documentation
+│   ├── GETTING_STARTED.md           # Setup guide for new projects
+│   ├── REQUIREMENTS_CAPTURE.md      # How to capture & create tickets
 │   ├── phase2-1-patch-safety.md
-│   ├── phase2-2-multi-provider-fallback.md
-│   ├── phase3-token-budget-enforcement.md
 │   └── ...
 │
-├── loops_prompts/              # Original spec documents (01-08)
+├── loops_prompts/                   # Original design specs (01-08)
+├── STRUCTURE.md                     # Project structure explanation
+├── PRODUCTION.md                    # Production deployment guide
 │
-├── package.json               # npm dependencies + scripts
-├── tsconfig.json              # TypeScript config
-├── eslint.config.js           # ESLint config
-└── README.md (this file)       # Main documentation
-
+├── package.json                     # Host dependencies (minimal)
+├── tsconfig.json                    # Host TypeScript config
+└── README.md (this file)             # Main documentation
 ```
 
 ---
@@ -313,13 +366,23 @@ npm test -- --watch
 
 ## 🚀 Deployment
 
-### Local Development
+All deployment commands run from `harness/` directory.
+
+### Local Development (Harness)
 
 ```bash
-HARNESS_MODE=deterministic npm run dev  # Fast, reproducible, no costs
+cd harness
+
+# Deterministic mode (fast, reproducible, no LLM costs)
+npm run dev
+
+# LLM mode (real Claude API)
+HARNESS_MODE=llm npm run dev
 ```
 
 ### Docker Deployment
+
+Create `harness/Dockerfile`:
 
 ```dockerfile
 FROM node:18-alpine
@@ -329,14 +392,15 @@ RUN npm ci --production
 COPY . .
 ENV NODE_ENV=production
 ENV HARNESS_MODE=llm
-CMD ["npm", "run", "harness:execute", "--", "--target", "/target-repo"]
+CMD ["npm", "run", "execute"]
 ```
 
 Build & run:
 ```bash
+cd harness
 docker build -t orchestrator:latest .
 docker run -e ANTHROPIC_API_KEY=sk-ant-v0-... \
-           -v /path/to/repo:/target-repo \
+           -v /path/to/config:/app/config \
            -v ./data:/app/data \
            orchestrator:latest
 ```
@@ -346,6 +410,7 @@ docker run -e ANTHROPIC_API_KEY=sk-ant-v0-... \
 ```yaml
 name: Orchestrator
 on: workflow_dispatch
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -354,8 +419,15 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - run: npm ci && npm run typecheck
-      - run: HARNESS_MODE=llm npm run harness:execute -- --target .
+      
+      - name: Install harness dependencies
+        run: cd harness && npm ci
+      
+      - name: Type check
+        run: cd harness && npm run typecheck
+      
+      - name: Run orchestrator
+        run: cd harness && HARNESS_MODE=llm npm run execute
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```

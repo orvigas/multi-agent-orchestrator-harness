@@ -1,46 +1,21 @@
 {
-  "name": "multiagent-harness",
+  "name": "target-repository-analyzer",
   "version": "0.1.0",
   "private": true,
-  "description": "Capa 1 (Orchestrator) del harness multi-agente, construido con LangGraph.js",
+  "description": "Target repository for multi-language code analysis",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "harness:execute": "tsx src/index.ts",
-    "harness:logs": "tsx src/orchestrator/harnessLogs.ts",
-    "harness:costs": "tsx src/orchestrator/harnessCosts.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/e2e.test.ts src/index.test.ts src/services/stack.test.ts src/services/llm.test.ts src/services/llm.retry.test.ts src/services/llmTimeout.test.ts src/services/llmCircuitBreaker.test.ts src/services/adaptiveBackoff.test.ts src/services/roleTimeouts.test.ts src/services/tokenBudgetEnforcer.test.ts src/services/modelDowngradeStrategy.test.ts src/services/tokenTracking.test.ts src/services/providerFallback.test.ts src/config/roles.test.ts src/orchestrator/routing.test.ts src/orchestrator/nodes/implementation.test.ts src/workflows/knowledge-engine/routing.test.ts src/workflows/knowledge-engine/tools.test.ts src/workflows/planner/routing.test.ts src/workflows/planner/validatePlan.test.ts src/workflows/implementation/routing.test.ts src/workflows/implementation/tools/patchValidator.test.ts src/workflows/implementation/sandbox.test.ts src/workflows/implementation/quickChecks.test.ts src/workflows/validation-pipeline/routing.test.ts src/workflows/validation-pipeline/exec.test.ts src/workflows/recovery/routing.test.ts src/workflows/quality-gate/routing.test.ts src/workflows/quality-gate/checkCoverage.test.ts src/workflows/quality-gate/checkSonar.test.ts src/workflows/merge-manager/routing.test.ts src/workflows/merge-manager/detectConflicts.test.ts src/workflows/merge-manager/promotePatch.test.ts src/parsers/ParserRegistry.test.ts src/parsers/JavaParser.test.ts src/languages/detector.test.ts",
-    "kb:index": "tsx src/workflows/knowledge-engine/indexing/buildIndexes.ts",
-    "kb:demo": "tsx src/workflows/knowledge-engine/demo.ts",
-    "planner:demo": "tsx src/workflows/planner/demo.ts",
-    "implementation:demo": "tsx src/workflows/implementation/demo.ts",
-    "validation:demo": "tsx src/workflows/validation-pipeline/demo.ts",
-    "recovery:demo": "tsx src/workflows/recovery/demo.ts",
-    "quality-gate:demo": "tsx src/workflows/quality-gate/demo.ts",
-    "merge-manager:demo": "tsx src/workflows/merge-manager/demo.ts"
+    "test": "tsx --test src/**/*.test.ts",
+    "test:parsers": "tsx --test src/parsers/**/*.test.ts",
+    "test:validators": "tsx --test src/validators/**/*.test.ts",
+    "test:languages": "tsx --test src/languages/**/*.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
-    "@langchain/anthropic": "^0.3.14",
-    "@langchain/core": "^0.3.40",
-    "@langchain/langgraph": "^0.2.44",
-    "@langchain/langgraph-checkpoint-sqlite": "^1.0.3",
-    "@langchain/openai": "^0.4.4",
-    "better-sqlite3": "^13.0.2",
-    "dotenv": "^16.4.7",
-    "js-yaml": "^4.1.0",
-    "ts-morph": "^24.0.0",
-    "zod": "^3.24.1"
+    "typescript": "^5.7.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.19.0",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.7",
-    "eslint": "^9.19.0",
-    "eslint-plugin-sonarjs": "^3.0.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "typescript-eslint": "^8.21.0"
+    "tsx": "^4.19.2"
   }
 }

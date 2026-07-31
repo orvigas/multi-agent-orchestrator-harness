@@ -1,11 +1,17 @@
 node_modules/
 dist/
 .env
+.env.*.local
 .harness.local/
 
-# Artefactos runtime del propio harness (Capa 8, Merge Manager, Capa 1) —
-# generados por npm run dev / harness:execute / merge-manager:demo, no son
-# código fuente.
+# Harness — directorio independiente con su propia estructura
+# (se puede remover sin afectar el proyecto host)
+harness/node_modules/
+harness/dist/
+harness/.env
+harness/.env.*.local
+
+# Artefactos runtime del harness (generados por npm run dev, no código fuente)
 .harness/releases.jsonl
 .harness/escalations/
 .harness/runs.jsonl

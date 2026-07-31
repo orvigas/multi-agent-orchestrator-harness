@@ -1,8 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface ContextLayer {
   source: "global" | "project" | "local";
@@ -10,12 +7,29 @@ export interface ContextLayer {
   content: string;
 }
 
+// Busca .harness/ hacia arriba desde cwd (es compartido por el harness y el proyecto host)
+function findContextRoot(): string {
+  let current = process.cwd();
+  const root = path.parse(current).root;
+
+  while (current !== root) {
+    const harnessDir = path.join(current, ".harness");
+    if (fs.existsSync(harnessDir)) {
+      return harnessDir;
+    }
+    current = path.dirname(current);
+  }
+
+  // Si no encontró .harness/, usa cwd como fallback
+  return path.join(process.cwd(), ".harness");
+}
+
 function getLayerDirs(targetPath?: string): Array<{ source: ContextLayer["source"]; dir: string }> {
-  const root = targetPath ?? process.cwd();
+  const contextRoot = findContextRoot();
   return [
-    { source: "global" as const, dir: path.resolve(__dirname, "../../.harness") },
-    { source: "project" as const, dir: path.resolve(root, ".harness") },
-    { source: "local" as const, dir: path.resolve(root, ".harness.local") },
+    { source: "global" as const, dir: contextRoot },
+    { source: "project" as const, dir: contextRoot },
+    { source: "local" as const, dir: path.join(path.dirname(contextRoot), ".harness.local") },
   ];
 }
 
