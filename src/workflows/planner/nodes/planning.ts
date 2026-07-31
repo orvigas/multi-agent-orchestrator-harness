@@ -1,7 +1,37 @@
 import { callLLM, HARNESS_MODE } from "../../../services/llm.js";
 import { buildContextBlock } from "../../../config/loadContext.js";
 import type { PlannerStateType } from "../state.js";
-import type { Plan, PlanTask } from "../types.js";
+import type { Plan, PlanTask, ValidationIssue } from "../types.js";
+
+// Estructura las rejecciones por severidad y patrón
+function structureRejectedContext(rejected: ValidationIssue[]): string {
+  if (rejected.length === 0) return "";
+
+  const forbidden = rejected.filter((r) => r.rule === "forbidden-zones");
+  const risks = rejected.filter((r) => r.rule === "risk-mitigation");
+
+  let output = "## REJECTION ANALYSIS (from previous attempt):\n\n";
+
+  if (forbidden.length > 0) {
+    output += "### ❌ CRITICAL: Forbidden Zones (CANNOT be modified)\n";
+    const files = [...new Set(forbidden.map((r) => r.file))];
+    for (const file of files) {
+      const count = forbidden.filter((r) => r.file === file).length;
+      output += `  - ${file} (rejected ${count}x)\n`;
+    }
+    output += "  → Do NOT include these files in touchesFiles. Plan around them.\n\n";
+  }
+
+  if (risks.length > 0) {
+    output += "### ⚠️  WARNINGS: Risk Mitigation Needed\n";
+    for (const risk of risks) {
+      output += `  - ${risk.file}: ${risk.detail}\n`;
+    }
+    output += "  → Add mitigation tasks or safety measures.\n\n";
+  }
+
+  return output;
+}
 
 // Stand-in determinista para el rol "planner". Corrige puntualmente lo que
 // Validation rechazó en la vuelta anterior (rejectedIssues, rootCause
@@ -23,9 +53,7 @@ export async function planningNode(state: PlannerStateType) {
   // Modo LLM: pedir a Claude que genere el plan
   if (HARNESS_MODE === "llm" && state.config) {
     try {
-      const rejectedContext = rejected.length > 0
-        ? `Previous rejections that need to be fixed:\n${rejected.map((r) => `- ${r.rule}: ${r.detail} (${r.file})`).join("\n")}`
-        : "";
+      const rejectedContext = structureRejectedContext(rejected);
 
       const userPrompt = `
 Problems to solve:

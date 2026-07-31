@@ -49,24 +49,45 @@ export async function decideStrategyNode(state: RecoveryStateType): Promise<{ st
   // Modo LLM: pedir a Claude que decida estrategia inteligentemente
   if (HARNESS_MODE === "llm" && state.config) {
     try {
+      // Build attempt history for context
+      const attemptSummary = patchAttempts.slice(-3).map((a, i) => {
+        const status = a.patch ? "✓ Generated" : "✗ Validation failed";
+        return `  Attempt ${patchAttempts.length - 2 + i}: ${status}`;
+      }).join("\n");
+
       const userPrompt = `
-Diagnosis: ${diagnosis!.rootCause}
-Confidence: ${diagnosis!.confidence}
-Failed patch attempts: ${patchAttempts.length}
+## Failure Diagnosis
+**Root Cause:** ${diagnosis!.rootCause}
+**Confidence:** ${diagnosis!.confidence}
+**Detail:** ${diagnosis!.detail}
 
-Root cause detail: ${diagnosis!.detail}
+## Recent Attempt History
+${attemptSummary || "  (no attempts yet)"}
 
-This is a NEW failure (not repeated). Decide the recovery strategy:
-- "retry": try patching again (for low-confidence or early-stage failures)
-- "rollback": revert to last known good state (for exhausted attempts)
-- "partial_retry": retry with reduced scope (if available)
-- "change_context": go back to Planning with new understanding
-- "change_model": ask for different problem formulation
+## Recovery Strategies
 
-Return JSON:
-{"strategy": "retry|rollback|partial_retry|change_context|change_model"}
+**Recommendation System** (choose the FIRST matching):
+1. HIGH confidence + Architecture/Dependencies → "change_context"
+   (Understanding is solid; the problem is in planning, not implementation)
 
-Return ONLY the JSON, no other text.
+2. MEDIUM/LOW confidence + <2 attempts → "retry"
+   (Not enough data to change strategy; try with improved diagnostics)
+
+3. MEDIUM/LOW confidence + ≥2 attempts → "change_model"
+   (Pattern suggests understanding is incomplete; reformulate)
+
+4. (Default) → "retry"
+
+## Strategy Meanings
+- "retry": Apply improved patch based on this diagnosis
+- "rollback": Revert and escalate (not available for new failures)
+- "partial_retry": Reduced scope (not available in current system)
+- "change_context": Go back to Planning; understanding was wrong
+- "change_model": Ask for different problem interpretation
+
+## Your Decision
+Return ONLY this JSON:
+{"strategy": "retry|change_context|change_model"}
 `;
 
       const response = await callLLM(

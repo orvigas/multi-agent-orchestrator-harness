@@ -10,6 +10,30 @@ import type { Patch, PatchHunk } from "../types.js";
 
 const CONTEXT_LINES = 2;
 
+// Estructura el feedback de validación para que el LLM entienda qué falló
+function structureValidationErrorsForLLM(errors: string[]): string {
+  if (errors.length === 0) return "";
+
+  const structured = errors.slice(0, 3).map((error) => {
+    // Try to extract hunk index from error message like "Hunk 0: ..."
+    const hunkMatch = error.match(/Hunk (\d+):\s*(.*)/);
+    if (hunkMatch) {
+      const [, index, detail] = hunkMatch;
+      const category = detail.includes("context")
+        ? "CONTEXT"
+        : detail.includes("oldLines") || detail.includes("newLines")
+          ? "CONTENT"
+          : detail.includes("forbidden") || detail.includes("not allowed")
+            ? "FORBIDDEN"
+            : "FORMAT";
+      return `  ❌ Hunk ${index} [${category}]: ${detail}`;
+    }
+    return `  ❌ ${error}`;
+  });
+
+  return `Previous validation failed:\n${structured.join("\n")}\n\nPlease fix these issues:`;
+}
+
 // Stand-in determinista para el rol "implementer": no escribe código nuevo,
 // solo agrega un comentario TODO trazable — real hunk basado en contexto
 // (líneas reales del archivo, nunca números de línea), aplicado y
@@ -104,7 +128,7 @@ ${Object.entries(fileContents)
   .map(([file, content]) => `\n### ${file}\n\`\`\`\n${content}\n\`\`\``)
   .join("\n")}
 
-${feedback ? `\nPrevious attempt failed: ${feedback}\nPlease fix the issue.` : ""}
+${feedback ? `\n## ⚠️  FEEDBACK FROM PREVIOUS ATTEMPT\n${feedback}` : ""}
 
 Generate a context-based JSON patch. CRITICAL REQUIREMENTS:
 
