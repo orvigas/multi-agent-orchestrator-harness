@@ -9,6 +9,7 @@ import type { BaseCheckpointSaver } from "@langchain/langgraph";
  * Phase 1.1: SQLite checkpointing (implemented)
  * - Environment: CHECKPOINT_DB_PATH (./data/harness-checkpoints.db)
  * - Uses: SqliteSaver from @langchain/langgraph-checkpoint-sqlite
+ * - Note: SqliteSaver.fromConnString() handles database initialization
  *
  * Phase 1.3: PostgreSQL checkpointing (for future production scaling)
  * - Environment: CHECKPOINT_DB_URL
@@ -30,7 +31,8 @@ export function createCheckpointer(): BaseCheckpointSaver {
   }
 
   console.log(`✅ Using SQLite Checkpointer: ${dbPath}`);
-  return new SqliteSaver({ connectionString: `file:${dbPath}` });
+  // SqliteSaver.fromConnString() handles database initialization automatically
+  return SqliteSaver.fromConnString(dbPath);
 }
 
 /**
